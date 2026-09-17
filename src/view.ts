@@ -36,10 +36,6 @@ export class TaskOverviewView extends ItemView {
 		return "check-square";
 	}
 
-	get pinnedNotePath(): string | null {
-		return this.pinnedPath;
-	}
-
 	async onOpen(): Promise<void> {
 		const root = this.contentEl;
 		root.empty();
@@ -63,7 +59,7 @@ export class TaskOverviewView extends ItemView {
 		);
 		this.registerEvent(
 			this.app.metadataCache.on("changed", (file) => {
-				if (file.path === this.trackedFile?.path) refresh();
+				if (file.path === (this.pinnedPath ?? this.trackedFile?.path)) refresh();
 			}),
 		);
 
@@ -161,9 +157,7 @@ export class TaskOverviewView extends ItemView {
 	}
 
 	private resolveFile(): TFile | null {
-		if (this.pinnedPath) {
-			return this.trackedFile ?? this.app.vault.getFileByPath(this.pinnedPath);
-		}
+		if (this.pinnedPath) return this.app.vault.getFileByPath(this.pinnedPath);
 
 		const active = this.app.workspace.getActiveFile();
 		if (active?.extension === "md") return active;
@@ -186,7 +180,7 @@ export class TaskOverviewView extends ItemView {
 	}
 }
 
-function readPinnedPath(state: unknown): string | null {
+export function readPinnedPath(state: unknown): string | null {
 	if (typeof state !== "object" || state === null) return null;
 	const pinnedPath = (state as { pinnedPath?: unknown }).pinnedPath;
 	return typeof pinnedPath === "string" && pinnedPath.length > 0 ? pinnedPath : null;

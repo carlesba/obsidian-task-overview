@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App, PluginSettingTab, Setting, TFile } from "obsidian";
+import { AbstractInputSuggest, App, Notice, PluginSettingTab, Setting, TFile } from "obsidian";
 import type TaskOverviewPlugin from "./main";
 import { TaskFilter } from "./tasks";
 
@@ -177,7 +177,10 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 
 	private async addPendingPanel(): Promise<void> {
 		const file = this.app.vault.getFileByPath(this.pendingPath);
-		if (!file) return;
+		if (!file || file.extension !== "md") {
+			new Notice("Pick a note from the list of suggestions.");
+			return;
+		}
 		if (this.plugin.settings.notePanels.some((panel) => panel.path === file.path)) return;
 
 		this.plugin.settings.notePanels.push({ ...defaultPanelSettings(), path: file.path });
