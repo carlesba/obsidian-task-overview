@@ -1,0 +1,26 @@
+{
+	"name": "obsidian-task-overview",
+	"version": "0.1.0",
+	"description": "Sidebar panel listing the tasks of the note in focus, filtered by open, done or all.",
+	"main": "main.js",
+	"private": true,
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck"
+	},
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"tasks"
+	],
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.11.30",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.20.2",
+		"obsidian": "latest",
+		"tslib": "^2.6.2",
+		"typescript": "^5.4.5"
+	}
+}
