@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Plugin, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
 import {
 	NotePanelSettings,
 	TaskOverviewSettingTab,
@@ -27,6 +27,10 @@ export default class TaskOverviewPlugin extends Plugin {
 		});
 
 		this.syncNotePanelCommands();
+
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) => void this.followRenamedNotePanel(file, oldPath)),
+		);
 	}
 
 	async saveSettings(): Promise<void> {
@@ -39,7 +43,7 @@ export default class TaskOverviewPlugin extends Plugin {
 		const ids = this.settings.notePanels.map(notePanelCommandId);
 
 		for (const id of this.notePanelCommandIds) {
-			if (!ids.includes(id)) this.removeNotePanelCommand(id);
+			if (!ids.includes(id)) this.removeCommand(id);
 		}
 
 		for (const panel of this.settings.notePanels) {
@@ -57,11 +61,28 @@ export default class TaskOverviewPlugin extends Plugin {
 		this.notePanelCommandIds = ids;
 	}
 
-	private removeNotePanelCommand(id: string): void {
-		// Obsidian's types leave open whether Plugin.removeCommand applies the plugin id prefix that
-		// addCommand documents, so both forms are addressed and the one that never existed is a no-op.
-		this.removeCommand(id);
-		this.removeCommand(`${this.manifest.id}:${id}`);
+	private async followRenamedNotePanel(file: TAbstractFile, oldPath: string): Promise<void> {
+		if (!(file instanceof TFile)) return;
+
+		const panel = this.settings.notePanels.find((entry) => entry.path === oldPath);
+		if (!panel) return;
+
+		panel.path = file.path;
+		for (const leaf of this.leavesPinnedTo(oldPath)) {
+			const current = leaf.getViewState();
+			await leaf.setViewState({
+				...current,
+				state: { ...(current.state ?? {}), pinnedPath: file.path },
+			});
+		}
+
+		await this.saveSettings();
+	}
+
+	private leavesPinnedTo(path: string): WorkspaceLeaf[] {
+		return this.app.workspace
+			.getLeavesOfType(TASK_OVERVIEW_VIEW)
+			.filter((leaf) => readPinnedPath(leaf.getViewState().state) === path);
 	}
 
 	private async revealPanel(pinnedPath: string | null): Promise<void> {
