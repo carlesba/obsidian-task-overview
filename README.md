@@ -8,7 +8,7 @@ An Obsidian sidebar panel that lists the tasks of the note you have in focus, so
 
 The panel follows the note in focus the way the Calendar plugin follows the active date, so switching notes swaps the list and editing the note refreshes it. With no note in focus it says so instead of leaving the last note's tasks on screen.
 
-Three filters sit above the list — open, completed or cancelled, and all — and each one carries a count taken from the note you are looking at, so you can tell how much is left before reading a single row.
+Three filters sit above the list — open, completed or cancelled, and all — and each filter button reports through its accessible label how many tasks in the current note it matches, so a screen reader announces how much is left without walking the list.
 
 Clicking a row opens the note and puts the cursor on that task's line, which makes the panel a table of contents for the work in a long note. Ticking a checkbox in the panel writes the change back to the file, so the note stays the single source of truth.
 
@@ -20,7 +20,7 @@ Turning on "Group tasks under their headings" splits the list by the nearest hea
 
 ## Working alongside the Tasks plugin
 
-Task Overview reads and writes plain Markdown checkboxes, and it recognises the statuses the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin writes: `[/]` for in progress and `[-]` for cancelled are shown as their own states rather than being lumped in with open tasks.
+Task Overview reads and writes plain Markdown checkboxes, and it recognises the statuses the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin writes. A task marked `[/]` is styled as in progress and one marked `[-]` as cancelled, and cancelled tasks sit with the completed ones rather than the open ones.
 
 When Tasks is installed, ticking a checkbox in the panel hands the toggle to that plugin, so its own rules for done dates and recurring tasks apply exactly as they would in the editor. When it is not installed, the panel flips `[ ]` to `[x]` itself. Nothing here depends on Tasks being present; the panel looks for it at runtime and falls back on its own.
 
