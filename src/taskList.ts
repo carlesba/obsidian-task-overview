@@ -25,8 +25,13 @@ function renderTaskRow(props: TaskListProps, task: Task): void {
 		type: "checkbox",
 	});
 	checkbox.checked = task.state === "closed";
+
+	let toggleInFlight = false;
 	checkbox.addEventListener("click", (event) => {
+		event.preventDefault();
 		event.stopPropagation();
+		if (toggleInFlight) return;
+		toggleInFlight = true;
 		void toggleAndNotify(props, task);
 	});
 
@@ -40,8 +45,11 @@ function renderTaskRow(props: TaskListProps, task: Task): void {
 }
 
 async function toggleAndNotify(props: TaskListProps, task: Task): Promise<void> {
-	await toggleTask(props.app, props.file, task);
-	props.onTaskToggled();
+	try {
+		await toggleTask(props.app, props.file, task);
+	} finally {
+		props.onTaskToggled();
+	}
 }
 
 function targetsRenderedLink(event: MouseEvent): boolean {
@@ -67,8 +75,11 @@ async function revealTask(props: TaskListProps, task: Task): Promise<void> {
 }
 
 function leafShowingFile(app: App, file: TFile): WorkspaceLeaf | null {
-	const match = app.workspace
-		.getLeavesOfType("markdown")
-		.find((leaf) => leaf.view instanceof MarkdownView && leaf.view.file?.path === file.path);
-	return match ?? null;
+	let match: WorkspaceLeaf | null = null;
+	app.workspace.iterateRootLeaves((leaf) => {
+		if (match) return;
+		const view = leaf.view;
+		if (view instanceof MarkdownView && view.file?.path === file.path) match = leaf;
+	});
+	return match;
 }
