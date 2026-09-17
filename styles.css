@@ -56,6 +56,47 @@
 	gap: 1px;
 }
 
+.task-overview-heading {
+	--heading-scale: 1;
+	font-size: calc(var(--font-ui-small) * var(--heading-scale));
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+	padding: var(--size-2-1) var(--size-2-2);
+	margin-top: var(--size-4-2);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.task-overview-list > .task-overview-heading:first-child {
+	margin-top: 0;
+}
+
+.task-overview-heading[data-level="1"] {
+	--heading-scale: 1.15;
+}
+
+.task-overview-heading[data-level="2"] {
+	--heading-scale: 1.1;
+}
+
+.task-overview-heading[data-level="3"] {
+	--heading-scale: 1.05;
+}
+
+.task-overview-heading[data-level="4"] {
+	--heading-scale: 1;
+}
+
+.task-overview-heading[data-level="5"] {
+	--heading-scale: 0.95;
+}
+
+.task-overview-heading[data-level="6"] {
+	--heading-scale: 0.9;
+}
+
 .task-overview-item {
 	--task-depth: 0;
 	display: flex;
