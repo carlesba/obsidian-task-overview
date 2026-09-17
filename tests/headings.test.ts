@@ -87,8 +87,8 @@ test("buildTaskRows reopens a heading when its run of tasks is interrupted", () 
 	const rows = buildTaskRows([task(1, week), task(5, monday), task(9, week)], true);
 
 	assert.deepEqual(
-		rows.filter((row) => row.kind === "heading").length,
-		3,
+		rows.map((row) => (row.kind === "heading" ? row.heading.text : `task ${row.task.line}`)),
+		["Week", "task 1", "Monday", "task 5", "Week", "task 9"],
 	);
 });
 
