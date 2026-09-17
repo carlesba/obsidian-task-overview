@@ -21,9 +21,12 @@ const FILTER_OPTIONS: FilterOption[] = [
 ];
 
 export function renderFilterControl(props: FilterControlProps): void {
+	const focusedIndex = indexOfFocusedOption(props.container);
 	props.container.empty();
 
-	for (const option of FILTER_OPTIONS) {
+	let selected = props.active;
+
+	FILTER_OPTIONS.forEach((option, index) => {
 		const isSelected = option.filter === props.active;
 		const label = `${option.description} (${props.counts[option.filter]})`;
 
@@ -37,8 +40,17 @@ export function renderFilterControl(props: FilterControlProps): void {
 		setTooltip(button, label);
 
 		button.addEventListener("click", () => {
-			if (isSelected) return;
+			if (option.filter === selected) return;
+			selected = option.filter;
 			props.onSelect(option.filter);
 		});
-	}
+
+		if (index === focusedIndex) button.focus();
+	});
+}
+
+function indexOfFocusedOption(container: HTMLElement): number {
+	const focused = container.ownerDocument.activeElement;
+	if (!focused) return -1;
+	return Array.from(container.children).indexOf(focused);
 }
