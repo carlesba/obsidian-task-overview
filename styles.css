@@ -139,7 +139,6 @@
 
 .task-overview-item.is-in-progress .task-overview-item-label {
 	color: var(--text-accent);
-	font-weight: var(--font-medium, 500);
 }
 
 .task-overview-empty {
