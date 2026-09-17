@@ -131,9 +131,15 @@
 	margin: 0;
 }
 
-.task-overview-item.is-closed .task-overview-item-label {
+.task-overview-item.is-done .task-overview-item-label,
+.task-overview-item.is-cancelled .task-overview-item-label {
 	color: var(--text-faint);
 	text-decoration: line-through;
+}
+
+.task-overview-item.is-in-progress .task-overview-item-label {
+	color: var(--text-accent);
+	font-weight: var(--font-medium, 500);
 }
 
 .task-overview-empty {

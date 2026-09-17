@@ -21,7 +21,7 @@ function task(line: number, heading?: TaskHeading): Task {
 		depth: 0,
 		text: `task on line ${line}`,
 		statusChar: " ",
-		state: "open",
+		status: "todo",
 		heading,
 	};
 }

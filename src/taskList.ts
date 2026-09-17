@@ -1,5 +1,5 @@
 import { App, Component, MarkdownRenderer, TFile } from "obsidian";
-import { Task, TaskHeading, buildTaskRows, toggleTask } from "./tasks";
+import { Task, TaskHeading, buildTaskRows, isClosedStatus, toggleTask } from "./tasks";
 
 export interface TaskListProps {
 	app: App;
@@ -31,14 +31,14 @@ function renderHeadingRow(container: HTMLElement, heading: TaskHeading): void {
 
 function renderTaskRow(props: TaskListProps, task: Task): void {
 	const row = props.container.createDiv({ cls: "task-overview-item" });
-	row.toggleClass("is-closed", task.state === "closed");
+	row.addClass(`is-${task.status}`);
 	row.style.setProperty("--task-depth", String(task.depth));
 
 	const checkbox = row.createEl("input", {
 		cls: "task-overview-item-checkbox",
 		type: "checkbox",
 	});
-	checkbox.checked = task.state === "closed";
+	checkbox.checked = isClosedStatus(task.status);
 	checkbox.addEventListener("click", (event) => {
 		event.stopPropagation();
 		void toggleTask(props.app, props.file, task).then(() => props.onTaskToggled());

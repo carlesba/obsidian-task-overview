@@ -10,7 +10,7 @@ export interface FilterControlProps {
 
 const FILTER_OPTIONS: { filter: TaskFilter; icon: string; label: string }[] = [
 	{ filter: "open", icon: "square", label: "Open" },
-	{ filter: "closed", icon: "check-square", label: "Completed" },
+	{ filter: "closed", icon: "check-square", label: "Completed or cancelled" },
 	{ filter: "all", icon: "list", label: "All" },
 ];
 

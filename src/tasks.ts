@@ -1,6 +1,6 @@
 import type { App, HeadingCache, TFile } from "obsidian";
 
-export type TaskState = "open" | "closed";
+export type TaskStatus = "todo" | "in-progress" | "done" | "cancelled";
 
 export type TaskFilter = "open" | "closed" | "all";
 
@@ -15,13 +15,31 @@ export interface Task {
 	depth: number;
 	text: string;
 	statusChar: string;
-	state: TaskState;
+	status: TaskStatus;
 	heading?: TaskHeading;
 }
 
-const OPEN_STATUS_CHAR = " ";
+const TODO_STATUS_CHAR = " ";
 const DONE_STATUS_CHAR = "x";
 const TASK_LINE = /^(\s*)(?:[-*+]|\d+[.)])\s+\[(.)\]\s?(.*)$/;
+
+export function readStatus(statusChar: string): TaskStatus {
+	switch (statusChar) {
+		case "x":
+		case "X":
+			return "done";
+		case "/":
+			return "in-progress";
+		case "-":
+			return "cancelled";
+		default:
+			return "todo";
+	}
+}
+
+export function isClosedStatus(status: TaskStatus): boolean {
+	return status === "done" || status === "cancelled";
+}
 
 export type TaskRow =
 	| { kind: "heading"; heading: TaskHeading }
@@ -77,13 +95,13 @@ export async function readTasks(app: App, file: TFile): Promise<Task[]> {
 		const match = TASK_LINE.exec(lines[lineNumber] ?? "");
 		if (!match) continue;
 
-		const statusChar = match[2];
+		const statusChar = item.task;
 		tasks.push({
 			line: lineNumber,
 			depth,
 			text: match[3].trim(),
 			statusChar,
-			state: statusChar === OPEN_STATUS_CHAR ? "open" : "closed",
+			status: readStatus(statusChar),
 			heading: resolveHeading(headings, lineNumber),
 		});
 	}
@@ -92,19 +110,20 @@ export async function readTasks(app: App, file: TFile): Promise<Task[]> {
 }
 
 export function matchesFilter(task: Task, filter: TaskFilter): boolean {
-	return filter === "all" || task.state === filter;
+	if (filter === "all") return true;
+	return isClosedStatus(task.status) === (filter === "closed");
 }
 
 export function countByState(tasks: Task[]): Record<TaskFilter, number> {
 	return {
-		open: tasks.filter((task) => task.state === "open").length,
-		closed: tasks.filter((task) => task.state === "closed").length,
+		open: tasks.filter((task) => matchesFilter(task, "open")).length,
+		closed: tasks.filter((task) => matchesFilter(task, "closed")).length,
 		all: tasks.length,
 	};
 }
 
 export async function toggleTask(app: App, file: TFile, task: Task): Promise<void> {
-	const nextChar = task.state === "open" ? DONE_STATUS_CHAR : OPEN_STATUS_CHAR;
+	const nextChar = isClosedStatus(task.status) ? TODO_STATUS_CHAR : DONE_STATUS_CHAR;
 	await app.vault.process(file, (data) => {
 		const lines = data.split("\n");
 		const target = lines[task.line];
