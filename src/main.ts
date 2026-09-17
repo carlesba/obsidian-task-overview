@@ -16,7 +16,7 @@ export default class TaskOverviewPlugin extends Plugin {
 
 		this.registerView(TASK_OVERVIEW_VIEW, (leaf) => new TaskOverviewView(leaf, this));
 
-		this.addRibbonIcon("list-checks", "Task overview", () => void this.revealPanel());
+		this.addRibbonIcon("check-square", "Task overview", () => void this.revealPanel());
 		this.addCommand({
 			id: "open-panel",
 			name: "Open task overview panel",

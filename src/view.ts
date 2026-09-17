@@ -29,7 +29,7 @@ export class TaskOverviewView extends ItemView {
 	}
 
 	getIcon(): string {
-		return "list-checks";
+		return "check-square";
 	}
 
 	async onOpen(): Promise<void> {
