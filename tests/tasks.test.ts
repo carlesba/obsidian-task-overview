@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { countByState, matchesFilter, readStatus, rewriteTaskLine, toggleStatusChar } from "../src/tasks.ts";
+import {
+	countByState,
+	isTaskLineRewrite,
+	matchesFilter,
+	readStatus,
+	rewriteTaskLine,
+	rewriteWhenTaskTextMatches,
+	toggleStatusChar,
+} from "../src/tasks.ts";
 import type { Task, TaskFilter, TaskStatus } from "../src/tasks.ts";
 
 const STATUS_CHARS: Record<TaskStatus, string> = {
@@ -121,4 +129,35 @@ test("rewriteTaskLine leaves the note untouched for a line outside it", () => {
 	assert.deepEqual(rewriteTaskLine(lines, -1, rewriteThatWouldFail), lines);
 	assert.deepEqual(rewriteTaskLine([], 0, rewriteThatWouldFail), []);
 	assert.deepEqual(lines, ["# Note", "- [ ] water the plants"]);
+});
+
+test("rewriteWhenTaskTextMatches rewrites the line holding the clicked task", () => {
+	const rewrite = rewriteWhenTaskTextMatches("water the plants", () => "- [x] water the plants");
+
+	assert.equal(rewrite("- [ ] water the plants"), "- [x] water the plants");
+	assert.equal(rewrite("\t* [/] water the plants"), "- [x] water the plants");
+});
+
+test("rewriteWhenTaskTextMatches leaves a line the clicked task moved away from", () => {
+	const rewrite = rewriteWhenTaskTextMatches("water the plants", () => "- [x] water the plants");
+
+	assert.equal(rewrite("- [ ] call mum"), "- [ ] call mum");
+	assert.equal(rewrite("## Chores"), "## Chores");
+	assert.equal(rewrite(""), "");
+});
+
+test("isTaskLineRewrite accepts one task line and a recurring pair", () => {
+	assert.equal(isTaskLineRewrite("- [x] water the plants"), true);
+	assert.equal(
+		isTaskLineRewrite("- [ ] water the plants 🔁 every day\n- [x] water the plants 🔁 every day"),
+		true,
+	);
+});
+
+test("isTaskLineRewrite rejects a result that would delete the task", () => {
+	assert.equal(isTaskLineRewrite(""), false);
+	assert.equal(isTaskLineRewrite("water the plants"), false);
+	assert.equal(isTaskLineRewrite("- [x] water the plants\n"), false);
+	assert.equal(isTaskLineRewrite(undefined), false);
+	assert.equal(isTaskLineRewrite(null), false);
 });

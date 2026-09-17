@@ -152,6 +152,22 @@ function flipStatusChar(line: string): string {
 	return line.replace(STATUS_BOX, (_box, statusChar: string) => `[${toggleStatusChar(statusChar)}]`);
 }
 
+function taskTextOf(line: string): string | undefined {
+	const match = TASK_LINE.exec(line);
+	return match ? match[3].trim() : undefined;
+}
+
+export function isTaskLineRewrite(rewritten: unknown): rewritten is string {
+	return (
+		typeof rewritten === "string" &&
+		rewritten.split("\n").every((line) => TASK_LINE.test(line))
+	);
+}
+
+export function rewriteWhenTaskTextMatches(text: string, rewrite: TaskLineRewrite): TaskLineRewrite {
+	return (line) => (taskTextOf(line) === text ? rewrite(line) : line);
+}
+
 function tasksPluginRewrite(app: App, path: string): TaskLineRewrite | undefined {
 	const installed = (app as App & { plugins?: TasksPluginRegistry }).plugins?.plugins;
 	const executeToggle = installed?.[TASKS_PLUGIN_ID]?.apiV1?.executeToggleTaskDoneCommand;
@@ -161,7 +177,7 @@ function tasksPluginRewrite(app: App, path: string): TaskLineRewrite | undefined
 		// executeToggleTaskDoneCommand throws on a line the Tasks plugin cannot parse.
 		try {
 			const rewritten = executeToggle(line, path);
-			return typeof rewritten === "string" ? rewritten : flipStatusChar(line);
+			return isTaskLineRewrite(rewritten) ? rewritten : flipStatusChar(line);
 		} catch {
 			return flipStatusChar(line);
 		}
@@ -169,7 +185,10 @@ function tasksPluginRewrite(app: App, path: string): TaskLineRewrite | undefined
 }
 
 export async function toggleTask(app: App, file: TFile, task: Task): Promise<void> {
-	const rewrite = tasksPluginRewrite(app, file.path) ?? flipStatusChar;
+	const rewrite = rewriteWhenTaskTextMatches(
+		task.text,
+		tasksPluginRewrite(app, file.path) ?? flipStatusChar,
+	);
 	await app.vault.process(file, (data) =>
 		rewriteTaskLine(data.split("\n"), task.line, rewrite).join("\n"),
 	);

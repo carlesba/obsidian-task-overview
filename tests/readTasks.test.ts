@@ -24,7 +24,7 @@ function readingApp(content: string, listItems: ListItemCache[]): App {
 	} as unknown as App;
 }
 
-async function lineAfterToggle(line: string, status: TaskStatus): Promise<string> {
+async function lineAfterToggle(line: string, status: TaskStatus, text = "write it"): Promise<string> {
 	let toggled = line;
 	const app = {
 		vault: {
@@ -34,7 +34,7 @@ async function lineAfterToggle(line: string, status: TaskStatus): Promise<string
 			},
 		},
 	} as unknown as App;
-	const task: Task = { line: 0, depth: 0, text: "task", statusChar: "", status };
+	const task: Task = { line: 0, depth: 0, text, statusChar: "", status };
 
 	await toggleTask(app, NOTE_FILE, task);
 	return toggled;
@@ -88,4 +88,9 @@ test("toggleTask closes a task that is not done or cancelled", async () => {
 test("toggleTask reopens a done or cancelled task", async () => {
 	assert.equal(await lineAfterToggle("- [x] write it", "done"), "- [ ] write it");
 	assert.equal(await lineAfterToggle("- [-] write it", "cancelled"), "- [ ] write it");
+});
+
+test("toggleTask leaves the line alone when it no longer holds the clicked task", async () => {
+	assert.equal(await lineAfterToggle("- [ ] write it", "todo", "read it"), "- [ ] write it");
+	assert.equal(await lineAfterToggle("## Write it", "todo"), "## Write it");
 });
