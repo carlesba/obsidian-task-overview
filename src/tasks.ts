@@ -22,6 +22,8 @@ export interface Task {
 const TODO_STATUS_CHAR = " ";
 const DONE_STATUS_CHAR = "x";
 const TASK_LINE = /^(\s*)(?:[-*+]|\d+[.)])\s+\[(.)\]\s?(.*)$/;
+const STATUS_BOX = /\[(.)\]/;
+const TASKS_PLUGIN_ID = "obsidian-tasks-plugin";
 
 export function readStatus(statusChar: string): TaskStatus {
 	switch (statusChar) {
@@ -122,13 +124,53 @@ export function countByState(tasks: Task[]): Record<TaskFilter, number> {
 	};
 }
 
+export type TaskLineRewrite = (line: string) => string;
+
+interface TasksPluginApiV1 {
+	executeToggleTaskDoneCommand?: (line: string, path: string) => string;
+}
+
+interface TasksPluginRegistry {
+	plugins?: Record<string, { apiV1?: TasksPluginApiV1 } | undefined>;
+}
+
+export function toggleStatusChar(statusChar: string): string {
+	return isClosedStatus(readStatus(statusChar)) ? TODO_STATUS_CHAR : DONE_STATUS_CHAR;
+}
+
+export function rewriteTaskLine(
+	lines: string[],
+	line: number,
+	rewrite: TaskLineRewrite,
+): string[] {
+	const target = lines[line];
+	if (target === undefined) return lines;
+	return [...lines.slice(0, line), ...rewrite(target).split("\n"), ...lines.slice(line + 1)];
+}
+
+function flipStatusChar(line: string): string {
+	return line.replace(STATUS_BOX, (_box, statusChar: string) => `[${toggleStatusChar(statusChar)}]`);
+}
+
+function tasksPluginRewrite(app: App, path: string): TaskLineRewrite | undefined {
+	const installed = (app as App & { plugins?: TasksPluginRegistry }).plugins?.plugins;
+	const executeToggle = installed?.[TASKS_PLUGIN_ID]?.apiV1?.executeToggleTaskDoneCommand;
+	if (typeof executeToggle !== "function") return undefined;
+
+	return (line) => {
+		// executeToggleTaskDoneCommand throws on a line the Tasks plugin cannot parse.
+		try {
+			const rewritten = executeToggle(line, path);
+			return typeof rewritten === "string" ? rewritten : flipStatusChar(line);
+		} catch {
+			return flipStatusChar(line);
+		}
+	};
+}
+
 export async function toggleTask(app: App, file: TFile, task: Task): Promise<void> {
-	const nextChar = isClosedStatus(task.status) ? TODO_STATUS_CHAR : DONE_STATUS_CHAR;
-	await app.vault.process(file, (data) => {
-		const lines = data.split("\n");
-		const target = lines[task.line];
-		if (target === undefined) return data;
-		lines[task.line] = target.replace(/\[(.)\]/, `[${nextChar}]`);
-		return lines.join("\n");
-	});
+	const rewrite = tasksPluginRewrite(app, file.path) ?? flipStatusChar;
+	await app.vault.process(file, (data) =>
+		rewriteTaskLine(data.split("\n"), task.line, rewrite).join("\n"),
+	);
 }

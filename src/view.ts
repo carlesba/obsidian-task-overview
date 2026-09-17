@@ -120,7 +120,7 @@ export class TaskOverviewView extends ItemView {
 
 	private emptyMessage(filter: TaskFilter): string {
 		if (filter === "open") return "No open tasks in this note.";
-		if (filter === "closed") return "No completed tasks in this note.";
+		if (filter === "closed") return "No completed or cancelled tasks in this note.";
 		return "No tasks in this note.";
 	}
 }

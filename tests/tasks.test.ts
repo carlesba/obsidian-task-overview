@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { countByState, matchesFilter, readStatus } from "../src/tasks.ts";
+import { countByState, matchesFilter, readStatus, rewriteTaskLine, toggleStatusChar } from "../src/tasks.ts";
 import type { Task, TaskFilter, TaskStatus } from "../src/tasks.ts";
 
 const STATUS_CHARS: Record<TaskStatus, string> = {
@@ -66,4 +66,59 @@ test("countByState counts what each filter shows", () => {
 
 test("countByState reports zeroes for an empty note", () => {
 	assert.deepEqual(countByState([]), { open: 0, closed: 0, all: 0 });
+});
+
+test("toggleStatusChar returns a closed task to todo and marks any other done", () => {
+	assert.equal(toggleStatusChar("x"), " ");
+	assert.equal(toggleStatusChar("X"), " ");
+	assert.equal(toggleStatusChar("-"), " ");
+	assert.equal(toggleStatusChar(" "), "x");
+	assert.equal(toggleStatusChar("/"), "x");
+	assert.equal(toggleStatusChar("?"), "x");
+});
+
+test("rewriteTaskLine puts a single rewritten line back in place", () => {
+	const lines = ["# Note", "- [ ] water the plants", "- [ ] call mum"];
+
+	assert.deepEqual(rewriteTaskLine(lines, 1, () => "- [x] water the plants"), [
+		"# Note",
+		"- [x] water the plants",
+		"- [ ] call mum",
+	]);
+});
+
+test("rewriteTaskLine grows the note by one when a rewrite returns two lines", () => {
+	const lines = ["# Note", "- [ ] water the plants 🔁 every day", "- [ ] call mum"];
+
+	assert.deepEqual(
+		rewriteTaskLine(
+			lines,
+			1,
+			() => "- [ ] water the plants 🔁 every day\n- [x] water the plants 🔁 every day",
+		),
+		[
+			"# Note",
+			"- [ ] water the plants 🔁 every day",
+			"- [x] water the plants 🔁 every day",
+			"- [ ] call mum",
+		],
+	);
+});
+
+test("rewriteTaskLine keeps the note as it was when the rewrite changes nothing", () => {
+	const lines = ["# Note", "- [ ] water the plants"];
+
+	assert.deepEqual(rewriteTaskLine(lines, 1, (line) => line), lines);
+});
+
+test("rewriteTaskLine leaves the note untouched for a line outside it", () => {
+	const lines = ["# Note", "- [ ] water the plants"];
+	const rewriteThatWouldFail = () => {
+		throw new Error("the rewrite must not run for a line outside the note");
+	};
+
+	assert.deepEqual(rewriteTaskLine(lines, 9, rewriteThatWouldFail), lines);
+	assert.deepEqual(rewriteTaskLine(lines, -1, rewriteThatWouldFail), lines);
+	assert.deepEqual(rewriteTaskLine([], 0, rewriteThatWouldFail), []);
+	assert.deepEqual(lines, ["# Note", "- [ ] water the plants"]);
 });
