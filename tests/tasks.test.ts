@@ -131,30 +131,22 @@ test("rewriteTaskLine leaves the note untouched for a line outside it", () => {
 	assert.deepEqual(lines, ["# Note", "- [ ] water the plants"]);
 });
 
-test("rewriteWhenTaskTextMatches rewrites the line holding the clicked task", () => {
+test("rewriteWhenTaskTextMatches rewrites only the line holding the clicked task", () => {
 	const rewrite = rewriteWhenTaskTextMatches("water the plants", () => "- [x] water the plants");
 
 	assert.equal(rewrite("- [ ] water the plants"), "- [x] water the plants");
 	assert.equal(rewrite("\t* [/] water the plants"), "- [x] water the plants");
-});
-
-test("rewriteWhenTaskTextMatches leaves a line the clicked task moved away from", () => {
-	const rewrite = rewriteWhenTaskTextMatches("water the plants", () => "- [x] water the plants");
-
 	assert.equal(rewrite("- [ ] call mum"), "- [ ] call mum");
 	assert.equal(rewrite("## Chores"), "## Chores");
 	assert.equal(rewrite(""), "");
 });
 
-test("isTaskLineRewrite accepts one task line and a recurring pair", () => {
+test("isTaskLineRewrite accepts task lines and rejects what would delete the task", () => {
 	assert.equal(isTaskLineRewrite("- [x] water the plants"), true);
 	assert.equal(
 		isTaskLineRewrite("- [ ] water the plants 🔁 every day\n- [x] water the plants 🔁 every day"),
 		true,
 	);
-});
-
-test("isTaskLineRewrite rejects a result that would delete the task", () => {
 	assert.equal(isTaskLineRewrite(""), false);
 	assert.equal(isTaskLineRewrite("water the plants"), false);
 	assert.equal(isTaskLineRewrite("- [x] water the plants\n"), false);

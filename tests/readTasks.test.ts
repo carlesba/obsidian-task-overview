@@ -4,7 +4,7 @@ import { readTasks, toggleTask } from "../src/tasks.ts";
 import type { Task, TaskStatus } from "../src/tasks.ts";
 import type { App, ListItemCache, TFile } from "obsidian";
 
-const NOTE_FILE = {} as unknown as TFile;
+const NOTE_FILE = { path: "Notes/note.md" } as unknown as TFile;
 
 function cachedListItem(line: number, statusChar?: string, parent = -1): ListItemCache {
 	return {
@@ -93,4 +93,72 @@ test("toggleTask reopens a done or cancelled task", async () => {
 test("toggleTask leaves the line alone when it no longer holds the clicked task", async () => {
 	assert.equal(await lineAfterToggle("- [ ] write it", "todo", "read it"), "- [ ] write it");
 	assert.equal(await lineAfterToggle("## Write it", "todo"), "## Write it");
+});
+
+function toggledTask(line: number): Task {
+	return { line, depth: 0, text: "write it", statusChar: " ", status: "todo" };
+}
+
+async function noteAfterToggle(
+	content: string,
+	task: Task,
+	apiV1?: unknown,
+): Promise<string> {
+	let written = content;
+	const app = {
+		plugins: { plugins: { "obsidian-tasks-plugin": apiV1 === undefined ? {} : { apiV1 } } },
+		vault: {
+			process: async (_file: TFile, mutate: (data: string) => string) => {
+				written = mutate(content);
+				return written;
+			},
+		},
+	} as unknown as App;
+
+	await toggleTask(app, NOTE_FILE, task);
+	return written;
+}
+
+test("toggleTask hands the task's own line and the file path to the Tasks plugin", async () => {
+	const calls: [string, string][] = [];
+	const apiV1 = {
+		executeToggleTaskDoneCommand: (line: string, path: string) => {
+			calls.push([line, path]);
+			return "- [x] write it ✅ 2026-09-17";
+		},
+	};
+
+	const note = await noteAfterToggle("# Note\n- [ ] write it", toggledTask(1), apiV1);
+
+	assert.deepEqual(calls, [["- [ ] write it", "Notes/note.md"]]);
+	assert.equal(note, "# Note\n- [x] write it ✅ 2026-09-17");
+});
+
+test("toggleTask splices in both lines a recurring completion returns", async () => {
+	const apiV1 = {
+		executeToggleTaskDoneCommand: () => "- [ ] write it 🔁 every day\n- [x] write it 🔁 every day",
+	};
+
+	const note = await noteAfterToggle("- [ ] write it\n- [ ] read it", toggledTask(0), apiV1);
+
+	assert.equal(note, "- [ ] write it 🔁 every day\n- [x] write it 🔁 every day\n- [ ] read it");
+});
+
+test("toggleTask falls back to its own flip when the Tasks API cannot be trusted", async () => {
+	const throwing = {
+		executeToggleTaskDoneCommand: () => {
+			throw new Error("the Tasks plugin could not parse the line");
+		},
+	};
+
+	assert.equal(await noteAfterToggle("- [ ] write it", toggledTask(0), throwing), "- [x] write it");
+	assert.equal(
+		await noteAfterToggle("- [ ] write it", toggledTask(0), { executeToggleTaskDoneCommand: () => "" }),
+		"- [x] write it",
+	);
+	assert.equal(
+		await noteAfterToggle("- [ ] write it", toggledTask(0), { executeToggleTaskDoneCommand: "not callable" }),
+		"- [x] write it",
+	);
+	assert.equal(await noteAfterToggle("- [ ] write it", toggledTask(0)), "- [x] write it");
 });
