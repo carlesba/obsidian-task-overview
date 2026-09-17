@@ -10,6 +10,18 @@ The panel follows the active note the way the Calendar plugin follows the active
 npm install
 npm run dev     # watch build
 npm run build   # typecheck + production bundle
+npm test        # unit tests
 ```
 
-Copy or symlink `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/task-overview/`.
+Install into a test vault by symlinking the repository itself, so the build output the
+plugin loads is always the one `npm run dev` just wrote:
+
+```bash
+ln -s "$PWD" "<vault>/.obsidian/plugins/task-overview"
+```
+
+Copying `main.js`, `manifest.json` and `styles.css` instead works once and then silently
+freezes: the vault keeps serving that copy, and the [Hot
+Reload](https://github.com/pjeby/hot-reload) plugin only watches plugin folders that are a
+symlink or contain `.git` or `.hotreload`, so a copied folder never reloads either. With
+the symlink in place, every `npm run dev` rebuild reloads the plugin in Obsidian.
