@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import type { App, HeadingCache, TFile } from "obsidian";
 
 export type TaskState = "open" | "closed";
 
@@ -7,6 +7,7 @@ export type TaskFilter = "open" | "closed" | "all";
 export interface TaskHeading {
 	level: number;
 	text: string;
+	line: number;
 }
 
 export interface Task {
@@ -22,9 +23,45 @@ const OPEN_STATUS_CHAR = " ";
 const DONE_STATUS_CHAR = "x";
 const TASK_LINE = /^(\s*)(?:[-*+]|\d+[.)])\s+\[(.)\]\s?(.*)$/;
 
+export type TaskRow =
+	| { kind: "heading"; heading: TaskHeading }
+	| { kind: "task"; task: Task };
+
+export function resolveHeading(headings: HeadingCache[], line: number): TaskHeading | undefined {
+	let nearest: HeadingCache | undefined;
+
+	for (const heading of headings) {
+		const headingLine = heading.position.start.line;
+		if (headingLine >= line) continue;
+		if (nearest && nearest.position.start.line >= headingLine) continue;
+		nearest = heading;
+	}
+
+	if (!nearest) return undefined;
+	return { level: nearest.level, text: nearest.heading, line: nearest.position.start.line };
+}
+
+export function buildTaskRows(tasks: Task[], insertHeadingRows: boolean): TaskRow[] {
+	const rows: TaskRow[] = [];
+	let openHeadingLine: number | undefined;
+
+	for (const task of tasks) {
+		if (insertHeadingRows && task.heading && task.heading.line !== openHeadingLine) {
+			rows.push({ kind: "heading", heading: task.heading });
+		}
+		openHeadingLine = task.heading?.line;
+		rows.push({ kind: "task", task });
+	}
+
+	return rows;
+}
+
 export async function readTasks(app: App, file: TFile): Promise<Task[]> {
-	const listItems = app.metadataCache.getFileCache(file)?.listItems;
+	const cache = app.metadataCache.getFileCache(file);
+	const listItems = cache?.listItems;
 	if (!listItems?.length) return [];
+
+	const headings = cache?.headings ?? [];
 
 	const lines = (await app.vault.cachedRead(file)).split("\n");
 	const depthByLine = new Map<number, number>();
@@ -47,6 +84,7 @@ export async function readTasks(app: App, file: TFile): Promise<Task[]> {
 			text: match[3].trim(),
 			statusChar,
 			state: statusChar === OPEN_STATUS_CHAR ? "open" : "closed",
+			heading: resolveHeading(headings, lineNumber),
 		});
 	}
 
