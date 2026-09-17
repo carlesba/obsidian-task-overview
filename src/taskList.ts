@@ -7,6 +7,7 @@ export interface TaskListProps {
 	container: HTMLElement;
 	file: TFile;
 	tasks: Task[];
+	showHeadings?: boolean;
 	onTaskToggled: () => void;
 }
 

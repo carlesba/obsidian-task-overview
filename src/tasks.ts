@@ -1,8 +1,13 @@
-import { App, TFile } from "obsidian";
+import type { App, TFile } from "obsidian";
 
 export type TaskState = "open" | "closed";
 
 export type TaskFilter = "open" | "closed" | "all";
+
+export interface TaskHeading {
+	level: number;
+	text: string;
+}
 
 export interface Task {
 	line: number;
@@ -10,6 +15,7 @@ export interface Task {
 	text: string;
 	statusChar: string;
 	state: TaskState;
+	heading?: TaskHeading;
 }
 
 const OPEN_STATUS_CHAR = " ";
