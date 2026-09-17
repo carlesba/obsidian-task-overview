@@ -45,7 +45,7 @@ export function renderFilterControl(props: FilterControlProps): void {
 			props.onSelect(option.filter);
 		});
 
-		if (index === focusedIndex) button.focus();
+		if (index === focusedIndex) button.focus({ preventScroll: true });
 	});
 }
 
