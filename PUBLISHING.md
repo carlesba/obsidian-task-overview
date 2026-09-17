@@ -100,7 +100,7 @@ community browser displays, so read those two once and then paste rather than re
 		"id": "task-overview",
 		"name": "Task Overview",
 		"author": "Carles Ballester",
-		"description": "Sidebar panel listing the tasks of the note in focus, filtered by open, done or all.",
+		"description": "Lists the tasks of the note in focus, filtered by open or completed, and optionally grouped under their headings.",
 		"repo": "carlesba/obsidian-task-overview"
 	}
 ```
