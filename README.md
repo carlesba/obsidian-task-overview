@@ -22,4 +22,4 @@ node scripts/install-to-vault.mjs --vault "/path/to/vault"
 
 The script copies `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/task-overview/`, creating that directory the first time. Set `OBSIDIAN_VAULT` to the vault path to leave `--vault` off, and add `--dry-run` to print what would be copied without writing anything. It refuses a path that holds no `.obsidian` directory, so pass the vault root rather than the plugins folder.
 
-Enable the plugin from Obsidian's community plugins settings, and reload it there after each rebuild to pick up the new bundle.
+Enable the plugin from Obsidian's community plugins settings. Each rebuild needs the script run again before Obsidian sees the new bundle, so re-run it and then reload the plugin from the same settings pane.
