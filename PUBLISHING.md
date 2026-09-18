@@ -79,54 +79,39 @@ downloads them by name. `main.js` is gitignored, so it exists only as a build ar
 release asset, and a release missing it installs as a plugin that cannot load — the most common
 reason a first submission is sent back.
 
-## 4. Submit to the community list
+## 4. Submit through the developer dashboard
 
-```sh
-cd ..
-gh repo fork obsidianmd/obsidian-releases --clone --default-branch-only
-cd obsidian-releases
-```
+Obsidian moved submissions off GitHub in May 2026. `community-plugins.json` in
+`obsidianmd/obsidian-releases` is now mirrored hourly from
+`https://community.obsidian.md/assets/community-plugins.json` by a workflow in that repository, so a
+pull request editing it is reverted within the hour and is no longer the way in.
 
-This leaves the clone beside the plugin instead of inside it, where it would sit untracked in a tree
-these steps need clean. The fork is a public repository on your account and you need it only once.
+The current path is the developer dashboard, and it needs two accounts only you can sign into, so
+this is the one step in this document that cannot be scripted:
 
-Append this entry to the end of the array in `community-plugins.json`, matching its tab indentation
-and adding the comma the previously last entry now needs, or the bot below rejects the file as
-invalid JSON. It is filled in from `manifest.json`, and its `name` and `description` are what the
-community browser displays, so read those two once and then paste rather than retype:
+1. Open <https://community.obsidian.md> and sign in with your **Obsidian** account — the one your
+   licence and forum login use, not GitHub.
+2. Link your **GitHub** account to that profile. The directory uses the link to prove you own the
+   repository you are about to submit, and it only sees *public* organisation membership, which does
+   not matter here because the repository is on your personal account.
+3. Add `carlesba/obsidian-task-overview` as a plugin. The dashboard reads `manifest.json` from the
+   HEAD of the default branch, so the `id`, `name`, `version`, `description` and `author` it lists
+   are whatever is committed on `main` — there is no separate entry to fill in by hand any more.
 
-```json
-	{
-		"id": "task-overview",
-		"name": "Task Overview",
-		"author": "Carles Ballester",
-		"description": "Lists the tasks of the note in focus, filtered by open or completed, and optionally grouped under their headings.",
-		"repo": "carlesba/obsidian-task-overview"
-	}
-```
+If the dashboard answers `Please wait before trying again`, it has rate-limited you and says nothing
+about for how long; clicking again extends it. Leave it and come back later, then click once.
 
-```sh
-git checkout -b add-task-overview
-git commit -am "Add Task Overview"
-git push -u origin add-task-overview
-gh pr create --web
-```
+## 5. What happens after you submit
 
-The branch and the push touch only your fork, so they cost nothing and can be redone. `--web` opens
-the pull request form in a browser because their template is a checklist you tick by hand, which
-reviewers ask for before they look at anything else, and merging the result is what fixes the id
-permanently.
+The automated review runs immediately and usually reports within a few minutes, checking the
+developer policies, code quality and known vulnerabilities rather than waiting on a human. A plugin
+that passes is searchable inside Obsidian within 24 hours. A plugin that fails shows the findings in
+the dashboard, and you clear them by fixing the code and publishing a **new release with a higher
+version** — editing the repository alone changes nothing, because the review scans releases.
 
-## 5. What happens after the pull request is open
-
-An automated validation bot comments on the pull request soon after it opens, checking the manifest
-and the release assets; if it complains, fix the repository, cut a new release once the fix is in the
-code, and reply on the same pull request rather than opening another. A human review follows and takes
-weeks, so treat the wait as normal rather than as a sign something went wrong. Code and releases you
-push while you wait need no second submission, because the entry points at the repository and Obsidian
-reads each release from it. The five fields you pasted, though, live only in `community-plugins.json`,
-so renaming the repository or changing the displayed name, author or description takes another pull
-request there, and the id can never change at all.
+From then on every release is scanned, not just this first one, and a release that fails review
+delists the plugin from search within 24 hours until a passing release exists. That is the part of the
+new system worth remembering: shipping a bad version is no longer just a bad version.
 
 ## Releasing an update later
 
