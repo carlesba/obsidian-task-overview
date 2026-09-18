@@ -15,7 +15,7 @@ export default class TaskOverviewPlugin extends Plugin {
 		this.addRibbonIcon("check-square", "Task overview", () => void this.revealPanel());
 		this.addCommand({
 			id: "open-panel",
-			name: "Open task overview panel",
+			name: "Open panel",
 			callback: () => void this.revealPanel(),
 		});
 	}

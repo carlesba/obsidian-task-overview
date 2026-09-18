@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-task-overview",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Lists the tasks of the note in focus, filtered by open or completed, and optionally grouped under their headings.",
 	"main": "main.js",
 	"private": true,
@@ -18,7 +18,6 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^20.11.30",
-		"builtin-modules": "^3.3.0",
 		"esbuild": "^0.20.2",
 		"obsidian": "latest",
 		"tslib": "^2.6.2",
