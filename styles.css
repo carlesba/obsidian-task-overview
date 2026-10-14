@@ -5,7 +5,16 @@
 	padding: var(--size-4-2);
 }
 
+.workspace-leaf-content .view-content.task-overview {
+	padding-top: 0;
+}
+
 .task-overview-header {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding-block: var(--size-4-2);
+	background-color: var(--background-secondary);
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
