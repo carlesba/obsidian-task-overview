@@ -5,6 +5,7 @@ import {
 	parseSymbolList,
 	readTasksStatusConfigurations,
 	hiddenMarksFor,
+	isTasksPluginEnabled,
 	resolveStatusRules,
 	statusRulesFor,
 	statusReaderFor,
@@ -236,4 +237,10 @@ test("resolveStatusRules loads Tasks statuses when only the hidden rule follows 
 	assert.equal(loads, 1);
 	assert.equal(rules.isHidden("i"), true);
 	assert.equal(rules.read("x"), "done");
+});
+
+test("isTasksPluginEnabled is true only while the Tasks plugin is loaded", () => {
+	assert.equal(isTasksPluginEnabled(appWithTasksData(async () => ({}))), true);
+	assert.equal(isTasksPluginEnabled(appWithTasksData()), false);
+	assert.equal(isTasksPluginEnabled({} as unknown as App), false);
 });
