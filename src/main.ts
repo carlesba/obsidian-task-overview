@@ -22,7 +22,7 @@ export default class TaskOverviewPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
-		for (const view of this.taskOverviewViews()) view.render();
+		for (const view of this.taskOverviewViews()) void view.refresh();
 	}
 
 	private async revealPanel(): Promise<void> {

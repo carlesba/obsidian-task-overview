@@ -1,4 +1,5 @@
 import type { App, HeadingCache, TFile } from "obsidian";
+import type { StatusReader } from "./statuses";
 
 export type TaskStatus = "todo" | "in-progress" | "done" | "cancelled";
 
@@ -76,7 +77,7 @@ export function buildTaskRows(tasks: Task[], insertHeadingRows: boolean): TaskRo
 	return rows;
 }
 
-export async function readTasks(app: App, file: TFile): Promise<Task[]> {
+export async function readTasks(app: App, file: TFile, read: StatusReader = readStatus): Promise<Task[]> {
 	const cache = app.metadataCache.getFileCache(file);
 	const listItems = cache?.listItems;
 	if (!listItems?.length) return [];
@@ -103,7 +104,7 @@ export async function readTasks(app: App, file: TFile): Promise<Task[]> {
 			depth,
 			text: match[3].trim(),
 			statusChar,
-			status: readStatus(statusChar),
+			status: read(statusChar),
 			heading: resolveHeading(headings, lineNumber),
 		});
 	}
@@ -134,8 +135,8 @@ interface TasksPluginRegistry {
 	plugins?: Record<string, { apiV1?: TasksPluginApiV1 } | undefined>;
 }
 
-export function toggleStatusChar(statusChar: string): string {
-	return isClosedStatus(readStatus(statusChar)) ? TODO_STATUS_CHAR : DONE_STATUS_CHAR;
+export function toggleStatusChar(statusChar: string, read: StatusReader = readStatus): string {
+	return isClosedStatus(read(statusChar)) ? TODO_STATUS_CHAR : DONE_STATUS_CHAR;
 }
 
 export function rewriteTaskLine(
@@ -148,8 +149,19 @@ export function rewriteTaskLine(
 	return [...lines.slice(0, line), ...rewrite(target).split("\n"), ...lines.slice(line + 1)];
 }
 
-function flipStatusChar(line: string): string {
-	return line.replace(STATUS_BOX, (_box, statusChar: string) => `[${toggleStatusChar(statusChar)}]`);
+function flipStatusChar(read: StatusReader): TaskLineRewrite {
+	return (line) =>
+		line.replace(STATUS_BOX, (_box, statusChar: string) => `[${toggleStatusChar(statusChar, read)}]`);
+}
+
+function isClosedLine(line: string, read: StatusReader): boolean {
+	const match = TASK_LINE.exec(line);
+	return match ? isClosedStatus(read(match[2])) : false;
+}
+
+export function flipsClosedState(line: string, rewritten: string, read: StatusReader): boolean {
+	const wasClosed = isClosedLine(line, read);
+	return rewritten.split("\n").some((rewrittenLine) => isClosedLine(rewrittenLine, read) !== wasClosed);
 }
 
 function taskTextOf(line: string): string | undefined {
@@ -168,26 +180,34 @@ export function rewriteWhenTaskTextMatches(text: string, rewrite: TaskLineRewrit
 	return (line) => (taskTextOf(line) === text ? rewrite(line) : line);
 }
 
-function tasksPluginRewrite(app: App, path: string): TaskLineRewrite | undefined {
+function tasksPluginRewrite(app: App, path: string, read: StatusReader): TaskLineRewrite | undefined {
 	const installed = (app as App & { plugins?: TasksPluginRegistry }).plugins?.plugins;
 	const executeToggle = installed?.[TASKS_PLUGIN_ID]?.apiV1?.executeToggleTaskDoneCommand;
 	if (typeof executeToggle !== "function") return undefined;
 
+	const flip = flipStatusChar(read);
 	return (line) => {
 		// executeToggleTaskDoneCommand throws on a line the Tasks plugin cannot parse.
 		try {
 			const rewritten = executeToggle(line, path);
-			return isTaskLineRewrite(rewritten) ? rewritten : flipStatusChar(line);
+			return isTaskLineRewrite(rewritten) && flipsClosedState(line, rewritten, read)
+				? rewritten
+				: flip(line);
 		} catch {
-			return flipStatusChar(line);
+			return flip(line);
 		}
 	};
 }
 
-export async function toggleTask(app: App, file: TFile, task: Task): Promise<void> {
+export async function toggleTask(
+	app: App,
+	file: TFile,
+	task: Task,
+	read: StatusReader = readStatus,
+): Promise<void> {
 	const rewrite = rewriteWhenTaskTextMatches(
 		task.text,
-		tasksPluginRewrite(app, file.path) ?? flipStatusChar,
+		tasksPluginRewrite(app, file.path, read) ?? flipStatusChar(read),
 	);
 	await app.vault.process(file, (data) =>
 		rewriteTaskLine(data.split("\n"), task.line, rewrite).join("\n"),

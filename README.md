@@ -22,6 +22,8 @@ Turning on "Group tasks under their headings" splits the list by the nearest hea
 
 Task Overview reads and writes plain Markdown checkboxes, and it recognises the statuses the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin writes. A task marked `[/]` is styled as in progress and one marked `[-]` as cancelled, and cancelled tasks sit with the completed ones rather than the open ones.
 
+The "Statuses that close a task" setting decides which marks count as closed. By default only `[x]` and `[-]` do. You can instead close a task on any character inside the brackets, list the characters yourself as a comma-separated list such as `x, -, >`, or follow the status types configured in the Tasks plugin, where every symbol typed as done or cancelled closes the task. When Tasks is not installed, that last option falls back to the default.
+
 When Tasks is installed, ticking a checkbox in the panel hands the toggle to that plugin, so its own rules for done dates and recurring tasks apply exactly as they would in the editor. When it is not installed, the panel flips `[ ]` to `[x]` itself. Nothing here depends on Tasks being present; the panel looks for it at runtime and falls back on its own.
 
 ## Installation

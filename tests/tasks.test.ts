@@ -7,8 +7,10 @@ import {
 	readStatus,
 	rewriteTaskLine,
 	rewriteWhenTaskTextMatches,
+	flipsClosedState,
 	toggleStatusChar,
 } from "../src/tasks.ts";
+import { statusReaderFor } from "../src/statuses.ts";
 import type { Task, TaskFilter, TaskStatus } from "../src/tasks.ts";
 
 const STATUS_CHARS: Record<TaskStatus, string> = {
@@ -152,4 +154,19 @@ test("isTaskLineRewrite accepts task lines and rejects what would delete the tas
 	assert.equal(isTaskLineRewrite("- [x] water the plants\n"), false);
 	assert.equal(isTaskLineRewrite(undefined), false);
 	assert.equal(isTaskLineRewrite(null), false);
+});
+
+test("toggleStatusChar decides closed through the reader it is given", () => {
+	const read = statusReaderFor("listed", ">");
+	assert.equal(toggleStatusChar(">", read), " ");
+	assert.equal(toggleStatusChar("x", read), "x");
+	assert.equal(toggleStatusChar("-", read), "x");
+});
+
+test("flipsClosedState accepts a rewrite only when some line changes closed state", () => {
+	const read = statusReaderFor("done-and-cancelled", "");
+	assert.equal(flipsClosedState("- [ ] a", "- [x] a", read), true);
+	assert.equal(flipsClosedState("- [x] a", "- [ ] a", read), true);
+	assert.equal(flipsClosedState("- [x] a", "- [-] a", read), false);
+	assert.equal(flipsClosedState("- [ ] a 🔁", "- [ ] a 🔁\n- [x] a 🔁", read), true);
 });

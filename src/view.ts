@@ -2,7 +2,8 @@ import { ItemView, TFile, WorkspaceLeaf, debounce } from "obsidian";
 import type TaskOverviewPlugin from "./main";
 import { renderFilterControl } from "./filter";
 import { renderTaskList } from "./taskList";
-import { Task, TaskFilter, countByState, matchesFilter, readTasks } from "./tasks";
+import { StatusReader, resolveStatusReader } from "./statuses";
+import { Task, TaskFilter, countByState, matchesFilter, readStatus, readTasks } from "./tasks";
 
 export const TASK_OVERVIEW_VIEW = "task-overview";
 
@@ -10,6 +11,7 @@ export class TaskOverviewView extends ItemView {
 	private plugin: TaskOverviewPlugin;
 	private trackedFile: TFile | null = null;
 	private tasks: Task[] = [];
+	private readStatus: StatusReader = readStatus;
 	private fileNameEl!: HTMLElement;
 	private filterEl!: HTMLElement;
 	private listEl!: HTMLElement;
@@ -63,17 +65,13 @@ export class TaskOverviewView extends ItemView {
 		const active = this.app.workspace.getActiveFile();
 		if (active?.extension === "md") this.trackedFile = active;
 
-		const file = this.trackedFile;
-		if (!file) {
-			this.tasks = [];
-			this.render();
-			return;
-		}
-
 		const read = ++this.pendingRead;
-		const tasks = await readTasks(this.app, file);
+		const statusReader = await resolveStatusReader(this.app, this.plugin.settings);
+		const file = this.trackedFile;
+		const tasks = file ? await readTasks(this.app, file, statusReader) : [];
 		if (read !== this.pendingRead) return;
 
+		this.readStatus = statusReader;
 		this.tasks = tasks;
 		this.render();
 	}
@@ -114,6 +112,7 @@ export class TaskOverviewView extends ItemView {
 			file,
 			tasks: visible,
 			showHeadings,
+			readStatus: this.readStatus,
 			onTaskToggled: () => void this.refresh(),
 		});
 	}

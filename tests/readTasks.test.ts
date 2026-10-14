@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readTasks, toggleTask } from "../src/tasks.ts";
+import { statusReaderFor } from "../src/statuses.ts";
 import type { Task, TaskStatus } from "../src/tasks.ts";
 import type { App, ListItemCache, TFile } from "obsidian";
 
@@ -161,4 +162,53 @@ test("toggleTask falls back to its own flip when the Tasks API cannot be trusted
 		"- [x] write it",
 	);
 	assert.equal(await noteAfterToggle("- [ ] write it", toggledTask(0)), "- [x] write it");
+});
+
+const CLOSED_BY_FORWARD = statusReaderFor("listed", "x, >");
+
+test("readTasks reads each status through the reader it is given", async () => {
+	const content = "- [>] forwarded\n- [!] important\n- [-] cancelled";
+	const listItems = [cachedListItem(0, ">"), cachedListItem(1, "!"), cachedListItem(2, "-")];
+
+	const tasks = await readTasks(readingApp(content, listItems), NOTE_FILE, CLOSED_BY_FORWARD);
+
+	assert.deepEqual(
+		tasks.map((task) => task.status),
+		["done", "todo", "todo"],
+	);
+});
+
+async function noteAfterReaderToggle(content: string, apiV1?: unknown): Promise<string> {
+	let written = content;
+	const app = {
+		plugins: { plugins: { "obsidian-tasks-plugin": apiV1 === undefined ? {} : { apiV1 } } },
+		vault: {
+			process: async (_file: TFile, mutate: (data: string) => string) => {
+				written = mutate(content);
+				return written;
+			},
+		},
+	} as unknown as App;
+	const task: Task = { line: 0, depth: 0, text: "write it", statusChar: "", status: "todo" };
+
+	await toggleTask(app, NOTE_FILE, task, CLOSED_BY_FORWARD);
+	return written;
+}
+
+test("toggleTask reopens a task closed by a listed character", async () => {
+	assert.equal(await noteAfterReaderToggle("- [>] write it"), "- [ ] write it");
+});
+
+test("toggleTask closes a task whose character the reader reads as open", async () => {
+	assert.equal(await noteAfterReaderToggle("- [-] write it"), "- [x] write it");
+});
+
+test("toggleTask ignores a Tasks rewrite that leaves the task as closed as before", async () => {
+	const apiV1 = { executeToggleTaskDoneCommand: () => "- [x] write it ✅ 2026-09-17" };
+	assert.equal(await noteAfterReaderToggle("- [>] write it", apiV1), "- [ ] write it");
+});
+
+test("toggleTask keeps a Tasks rewrite that reopens a task closed by a listed character", async () => {
+	const apiV1 = { executeToggleTaskDoneCommand: () => "- [ ] write it" };
+	assert.equal(await noteAfterReaderToggle("- [>] write it", apiV1), "- [ ] write it");
 });

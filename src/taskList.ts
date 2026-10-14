@@ -1,4 +1,5 @@
 import { App, Component, MarkdownRenderer, TFile } from "obsidian";
+import type { StatusReader } from "./statuses";
 import { Task, TaskHeading, buildTaskRows, isClosedStatus, toggleTask } from "./tasks";
 
 export interface TaskListProps {
@@ -8,6 +9,7 @@ export interface TaskListProps {
 	file: TFile;
 	tasks: Task[];
 	showHeadings?: boolean;
+	readStatus: StatusReader;
 	onTaskToggled: () => void;
 }
 
@@ -41,7 +43,7 @@ function renderTaskRow(props: TaskListProps, task: Task): void {
 	checkbox.checked = isClosedStatus(task.status);
 	checkbox.addEventListener("click", (event) => {
 		event.stopPropagation();
-		void toggleTask(props.app, props.file, task).then(() => props.onTaskToggled());
+		void toggleTask(props.app, props.file, task, props.readStatus).then(() => props.onTaskToggled());
 	});
 
 	const label = row.createDiv({ cls: "task-overview-item-label" });
