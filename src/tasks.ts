@@ -180,7 +180,12 @@ export function rewriteWhenTaskTextMatches(text: string, rewrite: TaskLineRewrit
 	return (line) => (taskTextOf(line) === text ? rewrite(line) : line);
 }
 
-function tasksPluginRewrite(app: App, path: string, read: StatusReader): TaskLineRewrite | undefined {
+function tasksPluginRewrite(
+	app: App,
+	path: string,
+	read: StatusReader,
+	followsTasksCycle: boolean,
+): TaskLineRewrite | undefined {
 	const installed = (app as App & { plugins?: TasksPluginRegistry }).plugins?.plugins;
 	const executeToggle = installed?.[TASKS_PLUGIN_ID]?.apiV1?.executeToggleTaskDoneCommand;
 	if (typeof executeToggle !== "function") return undefined;
@@ -190,7 +195,8 @@ function tasksPluginRewrite(app: App, path: string, read: StatusReader): TaskLin
 		// executeToggleTaskDoneCommand throws on a line the Tasks plugin cannot parse.
 		try {
 			const rewritten = executeToggle(line, path);
-			return isTaskLineRewrite(rewritten) && flipsClosedState(line, rewritten, read)
+			return isTaskLineRewrite(rewritten) &&
+				(followsTasksCycle || flipsClosedState(line, rewritten, read))
 				? rewritten
 				: flip(line);
 		} catch {
@@ -204,10 +210,11 @@ export async function toggleTask(
 	file: TFile,
 	task: Task,
 	read: StatusReader = readStatus,
+	followsTasksCycle = false,
 ): Promise<void> {
 	const rewrite = rewriteWhenTaskTextMatches(
 		task.text,
-		tasksPluginRewrite(app, file.path, read) ?? flipStatusChar(read),
+		tasksPluginRewrite(app, file.path, read, followsTasksCycle) ?? flipStatusChar(read),
 	);
 	await app.vault.process(file, (data) =>
 		rewriteTaskLine(data.split("\n"), task.line, rewrite).join("\n"),

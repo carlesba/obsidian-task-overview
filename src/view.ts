@@ -113,6 +113,7 @@ export class TaskOverviewView extends ItemView {
 			tasks: visible,
 			showHeadings,
 			readStatus: this.readStatus,
+			followsTasksCycle: this.plugin.settings.closingStatuses === "tasks-plugin",
 			onTaskToggled: () => void this.refresh(),
 		});
 	}

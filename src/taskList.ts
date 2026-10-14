@@ -10,6 +10,7 @@ export interface TaskListProps {
 	tasks: Task[];
 	showHeadings?: boolean;
 	readStatus: StatusReader;
+	followsTasksCycle: boolean;
 	onTaskToggled: () => void;
 }
 
@@ -43,7 +44,7 @@ function renderTaskRow(props: TaskListProps, task: Task): void {
 	checkbox.checked = isClosedStatus(task.status);
 	checkbox.addEventListener("click", (event) => {
 		event.stopPropagation();
-		void toggleTask(props.app, props.file, task, props.readStatus).then(() => props.onTaskToggled());
+		void toggleTask(props.app, props.file, task, props.readStatus, props.followsTasksCycle).then(() => props.onTaskToggled());
 	});
 
 	const label = row.createDiv({ cls: "task-overview-item-label" });

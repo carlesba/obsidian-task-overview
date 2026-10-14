@@ -178,7 +178,11 @@ test("readTasks reads each status through the reader it is given", async () => {
 	);
 });
 
-async function noteAfterReaderToggle(content: string, apiV1?: unknown): Promise<string> {
+async function noteAfterReaderToggle(
+	content: string,
+	apiV1?: unknown,
+	followsTasksCycle = false,
+): Promise<string> {
 	let written = content;
 	const app = {
 		plugins: { plugins: { "obsidian-tasks-plugin": apiV1 === undefined ? {} : { apiV1 } } },
@@ -191,7 +195,7 @@ async function noteAfterReaderToggle(content: string, apiV1?: unknown): Promise<
 	} as unknown as App;
 	const task: Task = { line: 0, depth: 0, text: "write it", statusChar: "", status: "todo" };
 
-	await toggleTask(app, NOTE_FILE, task, CLOSED_BY_FORWARD);
+	await toggleTask(app, NOTE_FILE, task, CLOSED_BY_FORWARD, followsTasksCycle);
 	return written;
 }
 
@@ -211,4 +215,21 @@ test("toggleTask ignores a Tasks rewrite that leaves the task as closed as befor
 test("toggleTask keeps a Tasks rewrite that reopens a task closed by a listed character", async () => {
 	const apiV1 = { executeToggleTaskDoneCommand: () => "- [ ] write it" };
 	assert.equal(await noteAfterReaderToggle("- [>] write it", apiV1), "- [ ] write it");
+});
+
+test("toggleTask follows the Tasks status cycle when the panel follows Tasks statuses", async () => {
+	const apiV1 = { executeToggleTaskDoneCommand: () => "- [/] write it" };
+	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1, true), "- [/] write it");
+	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1), "- [x] write it");
+});
+
+test("toggleTask keeps the done date Tasks adds when it closes a task", async () => {
+	const apiV1 = { executeToggleTaskDoneCommand: () => "- [x] write it ✅ 2026-09-18" };
+	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1), "- [x] write it ✅ 2026-09-18");
+	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1, true), "- [x] write it ✅ 2026-09-18");
+});
+
+test("toggleTask still falls back to its own flip for a broken Tasks rewrite when following Tasks", async () => {
+	const apiV1 = { executeToggleTaskDoneCommand: () => "" };
+	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1, true), "- [x] write it");
 });
