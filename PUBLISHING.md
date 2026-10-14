@@ -118,18 +118,37 @@ new system worth remembering: shipping a bad version is no longer just a bad ver
 Bump `version` in both `manifest.json` and `package.json`, which hold the same version today, and
 raise `minAppVersion` if the update needs a newer Obsidian. Add the matching line to `versions.json`,
 which maps each plugin version to the minimum Obsidian version it runs on and is how older installs
-know to stay on `1.0.0`. Then:
+know to stay on an older release. Then check locally what the review will check:
 
 ```sh
-git commit -am "Release 1.0.1"
-git push origin main
-git tag 1.0.1
-git push origin 1.0.1
-npm install && npm run build
-gh release create 1.0.1 --title 1.0.1 \
-  --notes "Fix the filter counts after a toggle." main.js manifest.json styles.css
+npm test && npm run lint && npm run build
 ```
 
-Obsidian picks the update up from the new release on its own, so there is no second pull request and
-no change to `community-plugins.json`. This tag push is as final as the first one was: a mistake is
-fixed by releasing `1.0.2`, never by moving `1.0.1`.
+`npm run lint` runs `eslint-plugin-obsidianmd`, the same rules the review applies, and fails on an API
+newer than `minAppVersion` unless the call sits behind `requireApiVersion`. Then push and tag:
+
+```sh
+git commit -am "Release 1.2.1"
+git push origin main
+git tag -a 1.2.1 -m "Show the panel's header while the list scrolls."
+git push origin 1.2.1
+```
+
+Never create the release by hand. Pushing the tag runs `.github/workflows/release.yml`, which checks
+that the tag equals the `version` in `manifest.json`, runs the tests, the lint and the build, attests
+`main.js`, `manifest.json` and `styles.css` with GitHub artifact attestations, and publishes the
+release with those three files and the tag's message as its notes. The attestations are what the
+review asks for to prove the files were built from this repository, and a release uploaded from a
+laptop has none.
+
+```sh
+gh run watch "$(gh run list --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+```
+
+If the run fails, no release exists and nobody can have installed the tag yet, so fix the cause on
+`main`, move the tag onto the fix with `git tag -fa` and `git push --force origin <tag>`, and the
+workflow runs again. Once a release is published the tag is final, and a mistake is fixed by
+releasing the next patch version.
+
+Obsidian picks the update up from the new release on its own, so there is no change to
+`community-plugins.json`.
