@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, SettingDefinitionItem } from "obsidian";
+import { App, PluginSettingTab, Setting, SettingDefinitionItem, requireApiVersion } from "obsidian";
 import type TaskOverviewPlugin from "./main";
 import {
 	ClosingStatuses,
@@ -7,7 +7,7 @@ import {
 	readClosingStatuses,
 	readHiddenStatuses,
 } from "./settings";
-import { symbolListError } from "./statuses";
+import { isTasksPluginEnabled, symbolListError } from "./statuses";
 
 const HEADINGS_SETTING = {
 	key: "showHeadings",
@@ -18,12 +18,12 @@ const HEADINGS_SETTING = {
 const CLOSING_STATUSES_SETTING = {
 	key: "closingStatuses",
 	name: "Statuses that close a task",
-	desc: "Closed tasks show as checked and appear under the closed filter instead of the open one.",
+	desc: "Closed tasks show as checked and appear under the closed filter instead of the open one. Following the Tasks plugin needs it installed and enabled.",
 	options: {
 		"done-and-cancelled": "Done [x] and cancelled [-]",
 		"any-mark": "Any character inside the brackets",
 		listed: "Only the characters I list",
-		"tasks-plugin": "Follow the Tasks plugin's statuses",
+		"tasks-plugin": "Follow the Tasks plugin",
 	} satisfies Record<ClosingStatuses, string>,
 } as const;
 
@@ -34,15 +34,23 @@ const CLOSING_SYMBOLS_SETTING = {
 	placeholder: "x, X, -",
 } as const;
 
+const TASKS_MISSING_NAME = "The Tasks plugin is not enabled";
+
+const CLOSING_TASKS_MISSING_DESC =
+	"Install and enable Tasks for this option to apply. Until then, only [x] and [-] close a task.";
+
+const HIDDEN_TASKS_MISSING_DESC =
+	"Install and enable Tasks for this option to apply. Until then, nothing is left out of the panel.";
+
 const NOT_TASKS_HEADING = "List items that are not tasks";
 
 const HIDDEN_STATUSES_SETTING = {
 	key: "hiddenStatuses",
 	name: "Statuses to leave out of the panel",
-	desc: "Checkboxes with these marks are list items, such as [i] for information, so the panel neither lists nor counts them.",
+	desc: "Checkboxes with these marks are list items, such as [i] for information, so the panel neither lists nor counts them. Following the Tasks plugin hides the statuses it types as non-tasks, and needs it installed and enabled.",
 	options: {
 		none: "None",
-		"tasks-plugin": "Follow the Tasks plugin's non-task statuses",
+		"tasks-plugin": "Follow the Tasks plugin",
 		listed: "Only the characters I list",
 	} satisfies Record<HiddenStatuses, string>,
 } as const;
@@ -92,6 +100,12 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: TASKS_MISSING_NAME,
+				desc: CLOSING_TASKS_MISSING_DESC,
+				searchable: false,
+				visible: () => this.needsMissingTasks(this.plugin.settings.closingStatuses),
+			},
+			{
 				type: "group",
 				heading: NOT_TASKS_HEADING,
 				items: [
@@ -115,6 +129,12 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 							validate: (typed) => symbolListError(typed),
 						},
 					},
+					{
+						name: TASKS_MISSING_NAME,
+						desc: HIDDEN_TASKS_MISSING_DESC,
+						searchable: false,
+						visible: () => this.needsMissingTasks(this.plugin.settings.hiddenStatuses),
+					},
 				],
 			},
 		];
@@ -126,10 +146,10 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 			settings.showHeadings = value === true;
 		} else if (key === CLOSING_STATUSES_SETTING.key) {
 			settings.closingStatuses = readClosingStatuses(value);
-			this.refreshDomState();
+			this.refreshVisibility();
 		} else if (key === HIDDEN_STATUSES_SETTING.key) {
 			settings.hiddenStatuses = readHiddenStatuses(value);
-			this.refreshDomState();
+			this.refreshVisibility();
 		} else if (key === CLOSING_SYMBOLS_SETTING.key || key === HIDDEN_SYMBOLS_SETTING.key) {
 			settings[key] = typeof value === "string" ? value : "";
 		} else {
@@ -157,6 +177,7 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 			settings.closingStatuses = readClosingStatuses(value);
 		});
 		if (settings.closingStatuses === "listed") this.addSymbolsField(CLOSING_SYMBOLS_SETTING);
+		if (this.needsMissingTasks(settings.closingStatuses)) this.addTasksMissingNotice(CLOSING_TASKS_MISSING_DESC);
 
 		new Setting(containerEl).setName(NOT_TASKS_HEADING).setHeading();
 
@@ -164,6 +185,19 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 			settings.hiddenStatuses = readHiddenStatuses(value);
 		});
 		if (settings.hiddenStatuses === "listed") this.addSymbolsField(HIDDEN_SYMBOLS_SETTING);
+		if (this.needsMissingTasks(settings.hiddenStatuses)) this.addTasksMissingNotice(HIDDEN_TASKS_MISSING_DESC);
+	}
+
+	private refreshVisibility(): void {
+		if (requireApiVersion("1.13.0")) this.refreshDomState();
+	}
+
+	private needsMissingTasks(mode: ClosingStatuses | HiddenStatuses): boolean {
+		return mode === "tasks-plugin" && !isTasksPluginEnabled(this.app);
+	}
+
+	private addTasksMissingNotice(desc: string): void {
+		new Setting(this.containerEl).setName(TASKS_MISSING_NAME).setDesc(desc);
 	}
 
 	private addModeDropdown(

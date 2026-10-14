@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-task-overview",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"description": "Lists the tasks of the note in focus, filtered by open or completed, and optionally grouped under their headings.",
 	"main": "main.js",
 	"private": true,
@@ -8,6 +8,7 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"typecheck": "tsc -noEmit -skipLibCheck",
+		"lint": "eslint src",
 		"test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/*.test.ts"
 	},
 	"keywords": [
@@ -19,6 +20,8 @@
 	"devDependencies": {
 		"@types/node": "^20.11.30",
 		"esbuild": "^0.20.2",
+		"eslint": "^9.39.5",
+		"eslint-plugin-obsidianmd": "^0.4.2",
 		"obsidian": "latest",
 		"tslib": "^2.6.2",
 		"typescript": "^5.4.5"

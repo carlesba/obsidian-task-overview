@@ -84,7 +84,7 @@ export function readTasksStatusConfigurations(stored: unknown): TasksStatusConfi
 	if (!isRecord(stored) || !isRecord(stored.statusSettings)) return undefined;
 	const { coreStatuses, customStatuses } = stored.statusSettings;
 	const statuses = [coreStatuses, customStatuses]
-		.flatMap((list) => (Array.isArray(list) ? list : []))
+		.flatMap((list): unknown[] => (Array.isArray(list) ? list : []))
 		.filter(isStatusConfiguration);
 	return statuses.length ? statuses : undefined;
 }
@@ -97,8 +97,16 @@ interface PluginRegistry {
 	plugins?: Record<string, PluginWithData | undefined>;
 }
 
+function loadedTasksPlugin(app: App): PluginWithData | undefined {
+	return (app as App & { plugins?: PluginRegistry }).plugins?.plugins?.[TASKS_PLUGIN_ID];
+}
+
+export function isTasksPluginEnabled(app: App): boolean {
+	return loadedTasksPlugin(app) !== undefined;
+}
+
 async function loadTasksStatusConfigurations(app: App): Promise<TasksStatusConfiguration[] | undefined> {
-	const tasksPlugin = (app as App & { plugins?: PluginRegistry }).plugins?.plugins?.[TASKS_PLUGIN_ID];
+	const tasksPlugin = loadedTasksPlugin(app);
 	if (typeof tasksPlugin?.loadData !== "function") return undefined;
 	try {
 		return readTasksStatusConfigurations(await tasksPlugin.loadData());
