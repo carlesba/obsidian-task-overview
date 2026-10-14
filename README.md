@@ -20,11 +20,13 @@ Turning on "Group tasks under their headings" splits the list by the nearest hea
 
 ## Working alongside the Tasks plugin
 
-Task Overview reads and writes plain Markdown checkboxes, and it recognises the statuses the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin writes. A task marked `[/]` is styled as in progress and one marked `[-]` as cancelled, and cancelled tasks sit with the completed ones rather than the open ones.
+Task Overview reads and writes plain Markdown checkboxes, and it works with the custom statuses of the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin. A task marked `[/]` is styled as in progress and one marked `[-]` as cancelled, and cancelled tasks sit with the completed ones rather than the open ones.
 
-The "Statuses that close a task" setting decides which marks count as closed. By default only `[x]` and `[-]` do. You can instead close a task on any character inside the brackets, list the characters yourself as a comma-separated list such as `x, -, >`, or follow the status types configured in the Tasks plugin, where every symbol typed as done or cancelled closes the task. When Tasks is not installed, that last option falls back to the default.
+The "Statuses that close a task" setting decides which marks count as closed. By default only `[x]` and `[-]` do. You can instead close a task on any character inside the brackets, or list the characters yourself as a comma-separated list such as `x, -, >`.
 
-When Tasks is installed, ticking a checkbox in the panel hands the toggle to that plugin, so its own rules for done dates and recurring tasks apply exactly as they would in the editor. When it is not installed, the panel flips `[ ]` to `[x]` itself. Nothing here depends on Tasks being present; the panel looks for it at runtime and falls back on its own.
+Choosing "Follow the Tasks plugin's statuses" makes the panel use the statuses you configured in Tasks, so a custom symbol such as `[>]` closes the task when Tasks types it as done or cancelled and stays open when Tasks types it as todo, in progress or on hold. Ticking a checkbox then moves the task to the next status in your Tasks cycle, exactly as clicking it in the editor would. When Tasks is not installed, this option falls back to the default.
+
+When Tasks is installed, ticking a checkbox in the panel hands the toggle to that plugin, so it stamps the done and cancelled dates and creates the next occurrence of a recurring task just as it does in the editor. When it is not installed, the panel flips `[ ]` to `[x]` itself. Nothing here depends on Tasks being present; the panel looks for it at runtime and falls back on its own.
 
 ## Installation
 
