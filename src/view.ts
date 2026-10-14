@@ -2,8 +2,8 @@ import { ItemView, TFile, WorkspaceLeaf, debounce } from "obsidian";
 import type TaskOverviewPlugin from "./main";
 import { renderFilterControl } from "./filter";
 import { renderTaskList } from "./taskList";
-import { StatusReader, resolveStatusReader } from "./statuses";
-import { Task, TaskFilter, countByState, matchesFilter, readStatus, readTasks } from "./tasks";
+import { DEFAULT_STATUS_RULES, StatusRules, resolveStatusRules } from "./statuses";
+import { Task, TaskFilter, countByState, matchesFilter, readTasks } from "./tasks";
 
 export const TASK_OVERVIEW_VIEW = "task-overview";
 
@@ -11,7 +11,7 @@ export class TaskOverviewView extends ItemView {
 	private plugin: TaskOverviewPlugin;
 	private trackedFile: TFile | null = null;
 	private tasks: Task[] = [];
-	private readStatus: StatusReader = readStatus;
+	private statusRules: StatusRules = DEFAULT_STATUS_RULES;
 	private fileNameEl!: HTMLElement;
 	private filterEl!: HTMLElement;
 	private listEl!: HTMLElement;
@@ -66,12 +66,12 @@ export class TaskOverviewView extends ItemView {
 		if (active?.extension === "md") this.trackedFile = active;
 
 		const read = ++this.pendingRead;
-		const statusReader = await resolveStatusReader(this.app, this.plugin.settings);
+		const statusRules = await resolveStatusRules(this.app, this.plugin.settings);
 		const file = this.trackedFile;
-		const tasks = file ? await readTasks(this.app, file, statusReader) : [];
+		const tasks = file ? await readTasks(this.app, file, statusRules.read, statusRules.isHidden) : [];
 		if (read !== this.pendingRead) return;
 
-		this.readStatus = statusReader;
+		this.statusRules = statusRules;
 		this.tasks = tasks;
 		this.render();
 	}
@@ -112,8 +112,8 @@ export class TaskOverviewView extends ItemView {
 			file,
 			tasks: visible,
 			showHeadings,
-			readStatus: this.readStatus,
-			followsTasksCycle: this.plugin.settings.closingStatuses === "tasks-plugin",
+			readStatus: this.statusRules.read,
+			followsTasksCycle: this.statusRules.followsTasksCycle,
 			onTaskToggled: () => void this.refresh(),
 		});
 	}

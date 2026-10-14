@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import {
-	closingSymbolsError,
-	parseClosingSymbols,
+	symbolListError,
+	parseSymbolList,
 	readTasksStatusConfigurations,
-	resolveStatusReader,
+	hiddenMarksFor,
+	resolveStatusRules,
+	statusRulesFor,
 	statusReaderFor,
 } from "../src/statuses.ts";
 import { defaultSettings } from "../src/settings.ts";
@@ -66,15 +68,15 @@ test("listed mode with nothing listed closes nothing", () => {
 	assert.ok(MARKS.every((mark) => read(mark) === "todo" || read(mark) === "in-progress"));
 });
 
-test("parseClosingSymbols splits on commas and drops spaces and empty entries", () => {
-	assert.deepEqual(parseClosingSymbols(" x,>,, ! ,"), ["x", ">", "!"]);
-	assert.deepEqual(parseClosingSymbols(""), []);
+test("parseSymbolList splits on commas and drops spaces and empty entries", () => {
+	assert.deepEqual(parseSymbolList(" x,>,, ! ,"), ["x", ">", "!"]);
+	assert.deepEqual(parseSymbolList(""), []);
 });
 
-test("closingSymbolsError rejects entries longer than one character", () => {
-	assert.equal(closingSymbolsError("x, -, >"), undefined);
-	assert.equal(closingSymbolsError(""), undefined);
-	assert.equal(closingSymbolsError("x, done, >>"), "Each entry must be a single character: done, >>");
+test("symbolListError rejects entries longer than one character", () => {
+	assert.equal(symbolListError("x, -, >"), undefined);
+	assert.equal(symbolListError(""), undefined);
+	assert.equal(symbolListError("x, done, >>"), "Each entry must be a single character: done, >>");
 });
 
 const TASKS_STATUSES: TasksStatusConfiguration[] = [
@@ -145,36 +147,93 @@ function settingsWith(overrides: Partial<TaskOverviewSettings>): TaskOverviewSet
 	return { ...defaultSettings(), ...overrides };
 }
 
-test("resolveStatusReader reads the Tasks plugin's saved statuses in tasks-plugin mode", async () => {
+test("resolveStatusRules reads the Tasks plugin's saved statuses in tasks-plugin mode", async () => {
 	const app = appWithTasksData(async () => ({
 		statusSettings: { coreStatuses: [], customStatuses: [{ symbol: ">", type: "DONE" }] },
 	}));
-	const read = await resolveStatusReader(app, settingsWith({ closingStatuses: "tasks-plugin" }));
+	const { read } = await resolveStatusRules(app, settingsWith({ closingStatuses: "tasks-plugin" }));
 	assert.equal(read(">"), "done");
 });
 
-test("resolveStatusReader falls back when the Tasks plugin is missing or its data fails to load", async () => {
+test("resolveStatusRules falls back when the Tasks plugin is missing or its data fails to load", async () => {
 	const settings = settingsWith({ closingStatuses: "tasks-plugin" });
-	const missing = await resolveStatusReader(appWithTasksData(), settings);
-	const failing = await resolveStatusReader(
-		appWithTasksData(async () => {
-			throw new Error("unreadable data.json");
-		}),
-		settings,
-	);
+	const missing = (await resolveStatusRules(appWithTasksData(), settings)).read;
+	const failing = (
+		await resolveStatusRules(
+			appWithTasksData(async () => {
+				throw new Error("unreadable data.json");
+			}),
+			settings,
+		)
+	).read;
 	for (const read of [missing, failing]) {
 		assert.equal(read(">"), "todo");
 		assert.equal(read("x"), "done");
 	}
 });
 
-test("resolveStatusReader does not read Tasks data outside tasks-plugin mode", async () => {
+test("resolveStatusRules does not read Tasks data outside tasks-plugin mode", async () => {
 	let loads = 0;
 	const app = appWithTasksData(async () => {
 		loads++;
 		return {};
 	});
-	const read = await resolveStatusReader(app, settingsWith({ closingStatuses: "listed", closingSymbols: ">" }));
+	const { read } = await resolveStatusRules(app, settingsWith({ closingStatuses: "listed", closingSymbols: ">" }));
 	assert.equal(read(">"), "done");
 	assert.equal(loads, 0);
+});
+
+const WITH_NON_TASKS: TasksStatusConfiguration[] = [
+	...TASKS_STATUSES,
+	{ symbol: "i", type: "NON_TASK" },
+	{ symbol: "~", type: "NON_TASK" },
+];
+
+test("no hidden statuses keeps every mark in the panel", () => {
+	const isHidden = hiddenMarksFor("none", "i", WITH_NON_TASKS);
+	assert.ok([...MARKS, "i", "~"].every((mark) => !isHidden(mark)));
+});
+
+test("listed hidden statuses hide exactly the listed characters", () => {
+	const isHidden = hiddenMarksFor("listed", " i, ? ,");
+	assert.deepEqual(
+		[...MARKS, "i"].filter(isHidden),
+		["?", "i"],
+	);
+});
+
+test("tasks-plugin hidden statuses hide the symbols Tasks types as non-task", () => {
+	const isHidden = hiddenMarksFor("tasks-plugin", "?", WITH_NON_TASKS);
+	assert.deepEqual(
+		[...MARKS, "i", "~"].filter(isHidden),
+		["i", "~"],
+	);
+});
+
+test("tasks-plugin hidden statuses hide nothing without Tasks statuses", () => {
+	const isHidden = hiddenMarksFor("tasks-plugin", "");
+	assert.ok([...MARKS, "i"].every((mark) => !isHidden(mark)));
+});
+
+test("statusRulesFor combines the closing rule, the hidden rule and the Tasks cycle", () => {
+	const rules = statusRulesFor(
+		settingsWith({ closingStatuses: "listed", closingSymbols: ">", hiddenStatuses: "listed", hiddenSymbols: "i" }),
+	);
+	assert.equal(rules.read(">"), "done");
+	assert.equal(rules.isHidden("i"), true);
+	assert.equal(rules.isHidden(">"), false);
+	assert.equal(rules.followsTasksCycle, false);
+	assert.equal(statusRulesFor(settingsWith({ closingStatuses: "tasks-plugin" })).followsTasksCycle, true);
+});
+
+test("resolveStatusRules loads Tasks statuses when only the hidden rule follows Tasks", async () => {
+	let loads = 0;
+	const app = appWithTasksData(async () => {
+		loads++;
+		return { statusSettings: { coreStatuses: [], customStatuses: [{ symbol: "i", type: "NON_TASK" }] } };
+	});
+	const rules = await resolveStatusRules(app, settingsWith({ hiddenStatuses: "tasks-plugin" }));
+	assert.equal(loads, 1);
+	assert.equal(rules.isHidden("i"), true);
+	assert.equal(rules.read("x"), "done");
 });

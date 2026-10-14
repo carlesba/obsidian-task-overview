@@ -1,5 +1,5 @@
 import type { App, HeadingCache, TFile } from "obsidian";
-import type { StatusReader } from "./statuses";
+import type { MarkPredicate, StatusReader } from "./statuses";
 
 export type TaskStatus = "todo" | "in-progress" | "done" | "cancelled";
 
@@ -77,7 +77,12 @@ export function buildTaskRows(tasks: Task[], insertHeadingRows: boolean): TaskRo
 	return rows;
 }
 
-export async function readTasks(app: App, file: TFile, read: StatusReader = readStatus): Promise<Task[]> {
+export async function readTasks(
+	app: App,
+	file: TFile,
+	read: StatusReader = readStatus,
+	isHidden: MarkPredicate = () => false,
+): Promise<Task[]> {
 	const cache = app.metadataCache.getFileCache(file);
 	const listItems = cache?.listItems;
 	if (!listItems?.length) return [];
@@ -99,6 +104,7 @@ export async function readTasks(app: App, file: TFile, read: StatusReader = read
 		if (!match) continue;
 
 		const statusChar = item.task;
+		if (isHidden(statusChar)) continue;
 		tasks.push({
 			line: lineNumber,
 			depth,

@@ -26,6 +26,8 @@ The "Statuses that close a task" setting decides which marks count as closed. By
 
 Choosing "Follow the Tasks plugin's statuses" makes the panel use the statuses you configured in Tasks, so a custom symbol such as `[>]` closes the task when Tasks types it as done or cancelled and stays open when Tasks types it as todo, in progress or on hold. Ticking a checkbox then moves the task to the next status in your Tasks cycle, exactly as clicking it in the editor would. When Tasks is not installed, this option falls back to the default.
 
+Some checkboxes are list items rather than tasks, such as `[i]` for a piece of information. The "Statuses to leave out of the panel" setting keeps them off the list and out of the counts: either list the characters yourself, such as `i, ?`, or follow the Tasks plugin, which hides every symbol Tasks types as a non-task. Tasks nested under a hidden item still show.
+
 When Tasks is installed, ticking a checkbox in the panel hands the toggle to that plugin, so it stamps the done and cancelled dates and creates the next occurrence of a recurring task just as it does in the editor. When it is not installed, the panel flips `[ ]` to `[x]` itself. Nothing here depends on Tasks being present; the panel looks for it at runtime and falls back on its own.
 
 ## Installation

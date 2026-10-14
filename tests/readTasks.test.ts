@@ -233,3 +233,23 @@ test("toggleTask still falls back to its own flip for a broken Tasks rewrite whe
 	const apiV1 = { executeToggleTaskDoneCommand: () => "" };
 	assert.equal(await noteAfterReaderToggle("- [ ] write it", apiV1, true), "- [x] write it");
 });
+
+test("readTasks leaves out the marks the panel hides and keeps their children's depth", async () => {
+	const content = "- [i] context\n\t- [ ] follow up\n- [x] done";
+	const listItems = [cachedListItem(0, "i"), cachedListItem(1, " ", 0), cachedListItem(2, "x")];
+
+	const tasks = await readTasks(
+		readingApp(content, listItems),
+		NOTE_FILE,
+		statusReaderFor("done-and-cancelled", ""),
+		(statusChar) => statusChar === "i",
+	);
+
+	assert.deepEqual(
+		tasks.map((task) => [task.text, task.depth]),
+		[
+			["follow up", 1],
+			["done", 0],
+		],
+	);
+});

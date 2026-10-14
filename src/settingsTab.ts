@@ -1,7 +1,13 @@
 import { App, PluginSettingTab, Setting, SettingDefinitionItem } from "obsidian";
 import type TaskOverviewPlugin from "./main";
-import { ClosingStatuses, readClosingStatuses } from "./settings";
-import { closingSymbolsError } from "./statuses";
+import {
+	ClosingStatuses,
+	HiddenStatuses,
+	TaskOverviewSettings,
+	readClosingStatuses,
+	readHiddenStatuses,
+} from "./settings";
+import { symbolListError } from "./statuses";
 
 const HEADINGS_SETTING = {
 	key: "showHeadings",
@@ -27,6 +33,28 @@ const CLOSING_SYMBOLS_SETTING = {
 	desc: "Comma-separated, for example: x, X, -, >",
 	placeholder: "x, X, -",
 } as const;
+
+const NOT_TASKS_HEADING = "List items that are not tasks";
+
+const HIDDEN_STATUSES_SETTING = {
+	key: "hiddenStatuses",
+	name: "Statuses to leave out of the panel",
+	desc: "Checkboxes with these marks are list items, such as [i] for information, so the panel neither lists nor counts them.",
+	options: {
+		none: "None",
+		"tasks-plugin": "Follow the Tasks plugin's non-task statuses",
+		listed: "Only the characters I list",
+	} satisfies Record<HiddenStatuses, string>,
+} as const;
+
+const HIDDEN_SYMBOLS_SETTING = {
+	key: "hiddenSymbols",
+	name: "Characters that are not tasks",
+	desc: "Comma-separated, for example: i, ?",
+	placeholder: "i",
+} as const;
+
+type SymbolsKey = typeof CLOSING_SYMBOLS_SETTING.key | typeof HIDDEN_SYMBOLS_SETTING.key;
 
 export class TaskOverviewSettingTab extends PluginSettingTab {
 	private plugin: TaskOverviewPlugin;
@@ -60,20 +88,50 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 					type: "text",
 					key: CLOSING_SYMBOLS_SETTING.key,
 					placeholder: CLOSING_SYMBOLS_SETTING.placeholder,
-					validate: (typed) => closingSymbolsError(typed),
+					validate: (typed) => symbolListError(typed),
 				},
+			},
+			{
+				type: "group",
+				heading: NOT_TASKS_HEADING,
+				items: [
+					{
+						name: HIDDEN_STATUSES_SETTING.name,
+						desc: HIDDEN_STATUSES_SETTING.desc,
+						control: {
+							type: "dropdown",
+							key: HIDDEN_STATUSES_SETTING.key,
+							options: HIDDEN_STATUSES_SETTING.options,
+						},
+					},
+					{
+						name: HIDDEN_SYMBOLS_SETTING.name,
+						desc: HIDDEN_SYMBOLS_SETTING.desc,
+						visible: () => this.plugin.settings.hiddenStatuses === "listed",
+						control: {
+							type: "text",
+							key: HIDDEN_SYMBOLS_SETTING.key,
+							placeholder: HIDDEN_SYMBOLS_SETTING.placeholder,
+							validate: (typed) => symbolListError(typed),
+						},
+					},
+				],
 			},
 		];
 	}
 
 	async setControlValue(key: string, value: unknown): Promise<void> {
+		const { settings } = this.plugin;
 		if (key === HEADINGS_SETTING.key) {
-			this.plugin.settings.showHeadings = value === true;
+			settings.showHeadings = value === true;
 		} else if (key === CLOSING_STATUSES_SETTING.key) {
-			this.plugin.settings.closingStatuses = readClosingStatuses(value);
+			settings.closingStatuses = readClosingStatuses(value);
 			this.refreshDomState();
-		} else if (key === CLOSING_SYMBOLS_SETTING.key) {
-			this.plugin.settings.closingSymbols = typeof value === "string" ? value : "";
+		} else if (key === HIDDEN_STATUSES_SETTING.key) {
+			settings.hiddenStatuses = readHiddenStatuses(value);
+			this.refreshDomState();
+		} else if (key === CLOSING_SYMBOLS_SETTING.key || key === HIDDEN_SYMBOLS_SETTING.key) {
+			settings[key] = typeof value === "string" ? value : "";
 		} else {
 			return;
 		}
@@ -82,46 +140,64 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
+		const { settings } = this.plugin;
 		containerEl.empty();
 
 		new Setting(containerEl)
 			.setName(HEADINGS_SETTING.name)
 			.setDesc(HEADINGS_SETTING.desc)
 			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.showHeadings).onChange((value) => {
-					this.plugin.settings.showHeadings = value;
+				toggle.setValue(settings.showHeadings).onChange((value) => {
+					settings.showHeadings = value;
 					void this.plugin.saveSettings();
 				}),
 			);
 
-		new Setting(containerEl)
-			.setName(CLOSING_STATUSES_SETTING.name)
-			.setDesc(CLOSING_STATUSES_SETTING.desc)
+		this.addModeDropdown(CLOSING_STATUSES_SETTING, settings.closingStatuses, (value) => {
+			settings.closingStatuses = readClosingStatuses(value);
+		});
+		if (settings.closingStatuses === "listed") this.addSymbolsField(CLOSING_SYMBOLS_SETTING);
+
+		new Setting(containerEl).setName(NOT_TASKS_HEADING).setHeading();
+
+		this.addModeDropdown(HIDDEN_STATUSES_SETTING, settings.hiddenStatuses, (value) => {
+			settings.hiddenStatuses = readHiddenStatuses(value);
+		});
+		if (settings.hiddenStatuses === "listed") this.addSymbolsField(HIDDEN_SYMBOLS_SETTING);
+	}
+
+	private addModeDropdown(
+		definition: { name: string; desc: string; options: Record<string, string> },
+		selected: string,
+		select: (value: string) => void,
+	): void {
+		new Setting(this.containerEl)
+			.setName(definition.name)
+			.setDesc(definition.desc)
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOptions(CLOSING_STATUSES_SETTING.options)
-					.setValue(this.plugin.settings.closingStatuses)
+					.addOptions(definition.options)
+					.setValue(selected)
 					.onChange((value) => {
-						this.plugin.settings.closingStatuses = readClosingStatuses(value);
+						select(value);
 						void this.plugin.saveSettings();
 						this.display();
 					}),
 			);
+	}
 
-		if (this.plugin.settings.closingStatuses !== "listed") return;
-
-		const symbolsSetting = new Setting(containerEl)
-			.setName(CLOSING_SYMBOLS_SETTING.name)
-			.setDesc(CLOSING_SYMBOLS_SETTING.desc);
-		symbolsSetting.addText((text) =>
+	private addSymbolsField(definition: { key: SymbolsKey; name: string; desc: string; placeholder: string }): void {
+		const settings: TaskOverviewSettings = this.plugin.settings;
+		const field = new Setting(this.containerEl).setName(definition.name).setDesc(definition.desc);
+		field.addText((text) =>
 			text
-				.setPlaceholder(CLOSING_SYMBOLS_SETTING.placeholder)
-				.setValue(this.plugin.settings.closingSymbols)
+				.setPlaceholder(definition.placeholder)
+				.setValue(settings[definition.key])
 				.onChange((value) => {
-					const error = closingSymbolsError(value);
-					symbolsSetting.setDesc(error ?? CLOSING_SYMBOLS_SETTING.desc);
+					const error = symbolListError(value);
+					field.setDesc(error ?? definition.desc);
 					if (error) return;
-					this.plugin.settings.closingSymbols = value;
+					settings[definition.key] = value;
 					void this.plugin.saveSettings();
 				}),
 		);

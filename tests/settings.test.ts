@@ -49,3 +49,21 @@ test("migrateSettings falls back to done and cancelled for an unknown mode or sy
 	assert.equal(migrated.closingStatuses, "done-and-cancelled");
 	assert.equal(migrated.closingSymbols, "");
 });
+
+test("defaultSettings leaves no status out of the panel", () => {
+	assert.equal(defaultSettings().hiddenStatuses, "none");
+	assert.equal(defaultSettings().hiddenSymbols, "");
+});
+
+test("migrateSettings reads every hidden-status mode and the hidden characters", () => {
+	for (const hiddenStatuses of ["none", "listed", "tasks-plugin"]) {
+		assert.equal(migrateSettings({ hiddenStatuses }).hiddenStatuses, hiddenStatuses);
+	}
+	assert.equal(migrateSettings({ hiddenSymbols: "i, ?" }).hiddenSymbols, "i, ?");
+});
+
+test("migrateSettings falls back to hiding nothing for an unknown hidden mode or symbols", () => {
+	const migrated = migrateSettings({ hiddenStatuses: "all", hiddenSymbols: ["i"] });
+	assert.equal(migrated.hiddenStatuses, "none");
+	assert.equal(migrated.hiddenSymbols, "");
+});
