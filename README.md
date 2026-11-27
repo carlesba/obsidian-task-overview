@@ -1,22 +1,50 @@
 # Task Overview
 
-An Obsidian sidebar panel that lists the tasks of the note you have in focus, so you can see and tick off a note's checkboxes without scrolling through it.
+Obsidian sidebar panels that list the tasks of the note you have in focus, of today's or this week's note, or of any notes you pick, so you can see and tick off their checkboxes without scrolling through them.
 
 ![The Task Overview panel beside a note](docs/images/panel.png)
 
 ## What it does
 
-The panel follows the note in focus the way the Calendar plugin follows the active date, so switching notes swaps the list and editing the note refreshes it. With no note in focus it says so instead of leaving the last note's tasks on screen.
+Out of the box the panel follows the note in focus the way the Calendar plugin follows the active date, so switching notes swaps the list and editing the note refreshes it. With no note in focus it says so instead of leaving the last note's tasks on screen.
 
 Three filters sit above the list — open, completed or cancelled, and all — and each filter button reports through its accessible label how many tasks in the current note it matches, so a screen reader announces how much is left without walking the list.
 
 Clicking a row opens the note and puts the cursor on that task's line, which makes the panel a table of contents for the work in a long note. Ticking a checkbox in the panel writes the change back to the file, so the note stays the single source of truth.
 
-Turning on "Group tasks under their headings" splits the list by the nearest heading above each task, which keeps a note with several sections readable.
+Turning on "Group tasks under their headings" in a panel's settings splits the list by the nearest heading above each task, which keeps a note with several sections readable.
 
 ![The panel with tasks grouped under their headings](docs/images/headings.png)
 
 ![The plugin's settings](docs/images/settings.png)
+
+## Panels and sources
+
+A fresh install has one panel, Task overview, that lists the note in focus. Under Settings → Task Overview → Panels you can add more, and each panel has its own name, icon, filter, layout toggles and list of sources. The status settings stay shared, because they describe how your vault writes checkboxes rather than what one panel shows.
+
+A source is a note the panel reads. Press + in a panel's Sources list and pick one:
+
+| Source | Lists the tasks of |
+| --- | --- |
+| Focused note | the note in focus, keeping the last one when focus moves to something that is not a note |
+| Today, This week, This month, This quarter, This year | the periodic note of the current period |
+| Note… | one note you pick from the vault; the source follows the note when you rename or move it |
+
+Sources are read in list order, and a note reached by two sources, such as Focused note and Today while today's note is open, is listed once at the first source's position. With two or more notes in a panel each one gets a header with its name, which opens the note when clicked; "Show a header for each note" turns the headers off for one flat list. A periodic note that does not exist yet, or a picked note that was deleted, shows as a muted header saying so. A panel that resolves to a single note is titled after that note, and otherwise shows its own name.
+
+### Where periodic notes live
+
+A periodic source follows another plugin's folder and name format by default, so changing them there never leaves a stale copy here. It follows the first of these that provides the period:
+
+1. [Date Compass](https://github.com/carlesba/obsidian-date-compass)
+2. [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
+3. the core Daily notes plugin, for Today only
+
+The source's description names the plugin it follows and the note it resolves to. When no plugin provides the period, the settings show a warning under the source and it lists nothing until one is enabled. Switching a source to Custom gives it its own folder and [Moment.js format](https://momentjs.com/docs/#/displaying/format/), prefilled with the values it was following, and shows today's date in that format as you type.
+
+### Opening panels
+
+Every panel has a command, "Open" followed by the panel's name, which you can bind to a hotkey or pin with a plugin such as Commander. A panel opens in the right sidebar, and running its command again reveals the tab it already has. The ribbon icon opens the first panel in the list. Renaming a panel renames its command and tab and keeps the hotkey; deleting a panel closes its tab.
 
 ## Working alongside the Tasks plugin
 
@@ -34,7 +62,7 @@ When Tasks is installed, ticking a checkbox in the panel hands the toggle to tha
 
 Once the plugin is listed in the community browser, open Settings → Community plugins → Browse, search for Task Overview, then install and enable it.
 
-To install it by hand, download `main.js`, `manifest.json` and `styles.css` from a release, put them in `<vault>/.obsidian/plugins/task-overview/`, and enable Task Overview under Settings → Community plugins. It needs Obsidian 1.6.0 or later and runs on both desktop and mobile.
+To install it by hand, download `main.js`, `manifest.json` and `styles.css` from a release, put them in `<vault>/.obsidian/plugins/task-overview/`, and enable Task Overview under Settings → Community plugins. It needs Obsidian 1.7.2 or later and runs on both desktop and mobile.
 
 ## Development
 
