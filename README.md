@@ -30,6 +30,8 @@ A source is a note the panel reads. Press + in a panel's Sources list and pick o
 | Today, This week, This month, This quarter, This year | the periodic note of the current period |
 | Note… | one note you pick from the vault; the source follows the note when you rename or move it |
 
+![A My day panel listing the focused note, today's note and this week's note](docs/images/panels.png)
+
 Sources are read in list order, and a note reached by two sources, such as Focused note and Today while today's note is open, is listed once at the first source's position. With two or more notes in a panel each one gets a header with its name, which opens the note when clicked; "Show a header for each note" turns the headers off for one flat list. A periodic note that does not exist yet, or a picked note that was deleted, shows as a muted header saying so. A panel that resolves to a single note is titled after that note, and otherwise shows its own name.
 
 ### Where periodic notes live
@@ -57,6 +59,8 @@ This example builds a panel that shows the note you are working in next to today
 5. Drag the rows into the order you want the notes to appear in the panel.
 6. Under **Layout**, keep **Show a header for each note** on so each note gets its own header, and turn on **Group tasks under their headings** if your notes use sections.
 7. Close the settings, open the command palette and run **Task Overview: Open My day**. The panel opens in the right sidebar, and its tab shows the icon you picked.
+
+![The My day panel's settings page](docs/images/panel-settings.png)
 
 When the note in focus is today's note, its tasks appear once, under the first source in the list that reaches it. To open the panel faster, bind **Open My day** to a hotkey under Settings → Hotkeys, or add it to the ribbon with Commander.
 
