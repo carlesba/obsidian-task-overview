@@ -1,9 +1,9 @@
 {
 	"id": "task-overview",
 	"name": "Task Overview",
-	"version": "1.2.1",
+	"version": "2.0.0",
 	"minAppVersion": "1.14.0",
-	"description": "Lists the tasks of the note in focus, filtered by open or completed, and optionally grouped under their headings.",
+	"description": "Sidebar panels that list the tasks of the note in focus, of today's or this week's note, or of notes you pick, filtered by open or completed.",
 	"author": "Carles Ballester",
 	"isDesktopOnly": false
 }
