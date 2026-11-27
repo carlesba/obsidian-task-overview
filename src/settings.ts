@@ -76,6 +76,10 @@ export function newPanel(panels: readonly Panel[], name: string, sources: Source
 	};
 }
 
+export function moveEntry(entries: unknown[], from: number, to: number): void {
+	entries.splice(to, 0, ...entries.splice(from, 1));
+}
+
 export function readClosingStatuses(stored: unknown): ClosingStatuses {
 	return CLOSING_STATUSES.find((closingStatuses) => closingStatuses === stored) ?? "done-and-cancelled";
 }

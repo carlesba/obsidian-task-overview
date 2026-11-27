@@ -20,7 +20,7 @@ Turning on "Group tasks under their headings" in a panel's settings splits the l
 
 ## Panels and sources
 
-A fresh install has one panel, Task overview, that lists the note in focus. Under Settings → Task Overview → Panels you can add more, and each panel has its own name, icon, filter, layout toggles and list of sources. The status settings stay shared, because they describe how your vault writes checkboxes rather than what one panel shows.
+A fresh install has one panel, Task overview, that lists the note in focus. Under Settings → Task Overview → Panels you can add more, and each panel has its own name, icon, filter, layout toggles and list of sources. Clicking a panel in the list opens its page, which is also where you move it up or down the list and remove it. The status settings stay shared, because they describe how your vault writes checkboxes rather than what one panel shows.
 
 A source is a note the panel reads. Press + in a panel's Sources list and pick one:
 
@@ -40,7 +40,7 @@ A periodic source follows another plugin's folder and name format by default, so
 2. [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
 3. the core Daily notes plugin, for Today only
 
-The source's description names the plugin it follows and the note it resolves to. When no plugin provides the period, the settings show a warning under the source and it lists nothing until one is enabled. Switching a source to Custom gives it its own folder and [Moment.js format](https://momentjs.com/docs/#/displaying/format/), prefilled with the values it was following, and shows today's date in that format as you type.
+The source's description names the plugin it follows and the note it resolves to. When no plugin provides the period, the settings show a warning under the Sources list and the source lists nothing until one is enabled. Switching a source to Custom gives it its own folder and [Moment.js format](https://momentjs.com/docs/#/displaying/format/), prefilled with the values it was following and shown in their own group below the list, and shows today's date in that format as you type.
 
 ### Opening panels
 
@@ -62,7 +62,7 @@ When Tasks is installed, ticking a checkbox in the panel hands the toggle to tha
 
 Once the plugin is listed in the community browser, open Settings → Community plugins → Browse, search for Task Overview, then install and enable it.
 
-To install it by hand, download `main.js`, `manifest.json` and `styles.css` from a release, put them in `<vault>/.obsidian/plugins/task-overview/`, and enable Task Overview under Settings → Community plugins. It needs Obsidian 1.7.2 or later and runs on both desktop and mobile.
+To install it by hand, download `main.js`, `manifest.json` and `styles.css` from a release, put them in `<vault>/.obsidian/plugins/task-overview/`, and enable Task Overview under Settings → Community plugins. It needs Obsidian 1.14.0 or later and runs on both desktop and mobile.
 
 ## Development
 

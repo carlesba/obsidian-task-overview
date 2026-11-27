@@ -11,12 +11,14 @@ export default class TaskOverviewPlugin extends Plugin {
 	private commandIds: string[] = [];
 	private commandSignature = "";
 	private midnightTimer: number | undefined;
+	private settingTab: TaskOverviewSettingTab | undefined;
 
 	async onload(): Promise<void> {
 		this.settings = migrateSettings(await this.loadData());
 
 		this.registerView(TASK_OVERVIEW_VIEW, (leaf) => new TaskOverviewView(leaf, this));
-		this.addSettingTab(new TaskOverviewSettingTab(this.app, this));
+		this.settingTab = new TaskOverviewSettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
 
 		this.addRibbonIcon("check-square", "Task overview", () => void this.openPanel(this.settings.panels[0]));
 		this.syncCommands();
@@ -32,6 +34,11 @@ export default class TaskOverviewPlugin extends Plugin {
 	}
 
 	async saveSettings(): Promise<void> {
+		await this.saveWithoutRedrawingSettings();
+		this.settingTab?.update();
+	}
+
+	async saveWithoutRedrawingSettings(): Promise<void> {
 		await this.saveData(this.settings);
 		this.syncCommands();
 		this.refreshViews();

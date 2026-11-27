@@ -189,33 +189,6 @@
 	padding: var(--size-4-1) var(--size-2-2);
 }
 
-.task-overview-list-row-leading {
-	display: flex;
-	align-items: center;
-	flex: 0 0 auto;
-	margin-inline-end: var(--size-4-2);
-}
-
-.task-overview-list-row-handle {
-	display: flex;
-	padding: var(--size-2-2);
-	color: var(--text-faint);
-	cursor: grab;
-}
-
-.task-overview-list-placeholder .setting-item-name {
-	color: var(--text-faint);
-	font-style: italic;
-}
-
-.task-overview-source-details {
-	padding-inline-start: var(--size-4-8);
-}
-
-.task-overview-source-details:empty {
-	display: none;
-}
-
 .task-overview-icon-preview {
 	display: inline-flex;
 	align-items: center;

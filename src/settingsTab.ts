@@ -1,4 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting, moment, normalizePath, setIcon } from "obsidian";
+import type {
+	SettingDefinition,
+	SettingDefinitionGroup,
+	SettingDefinitionItem,
+	SettingDefinitionList,
+	SettingDefinitionPage,
+} from "obsidian";
 import type TaskOverviewPlugin from "./main";
 import { periodicPlugins } from "./obsidianPlugins";
 import {
@@ -11,21 +18,57 @@ import {
 	periodLocation,
 	periodicNotePath,
 } from "./periodic";
-import type { Period, PeriodicSource } from "./periodic";
+import type { Period, PeriodLocation, PeriodicSource } from "./periodic";
 import { Choice, IconPicker, NotePicker, showChoices } from "./pickers";
 import {
 	ClosingStatuses,
 	HiddenStatuses,
 	Panel,
 	Source,
-	TaskOverviewSettings,
+	moveEntry,
 	newPanel,
 	readClosingStatuses,
 	readHiddenStatuses,
 } from "./settings";
-import { ListRow, moveEntry, renderSettingsList } from "./settingsList";
 import { noteName } from "./sources";
 import { isTasksPluginEnabled, symbolListError } from "./statuses";
+
+const PANEL_NAME_SETTING = {
+	name: "Name",
+	desc: "Names the panel's tab and the command that opens it.",
+	empty: "A panel needs a name.",
+} as const;
+
+const ICON_SETTING = {
+	name: "Icon",
+	desc: "Shown on the panel's tab and next to its command.",
+} as const;
+
+const POSITION_SETTING = {
+	name: "Position in the panel list",
+	desc: "The ribbon icon opens the first panel.",
+} as const;
+
+const REMOVE_SETTING = {
+	name: "Remove this panel",
+	desc: "Closes the panel's tab and removes its command.",
+	lastPanel: "Keep at least one panel.",
+} as const;
+
+const REMOVED_PANEL = {
+	name: "This panel was removed",
+	desc: "Go back to see the panels that are left.",
+} as const;
+
+const FOLDER_SETTING = {
+	name: "Folder",
+	desc: "Where these notes live. Leave empty for the vault root.",
+} as const;
+
+const FORMAT_SETTING = {
+	name: "Format",
+	desc: "The Moment.js format of the note's name. Shows today's date in that format as you type.",
+} as const;
 
 const HEADINGS_SETTING = {
 	name: "Group tasks under their headings",
@@ -67,7 +110,6 @@ const CLOSING_STATUSES_SETTING = {
 } as const;
 
 const CLOSING_SYMBOLS_SETTING = {
-	key: "closingSymbols",
 	name: "Characters that close a task",
 	desc: "Comma-separated, for example: x, X, -, >",
 	placeholder: "x, X, -",
@@ -94,194 +136,307 @@ const HIDDEN_STATUSES_SETTING = {
 } as const;
 
 const HIDDEN_SYMBOLS_SETTING = {
-	key: "hiddenSymbols",
 	name: "Characters that are not tasks",
 	desc: "Comma-separated, for example: i, ?",
 	placeholder: "i",
 } as const;
 
-type SymbolsKey = typeof CLOSING_SYMBOLS_SETTING.key | typeof HIDDEN_SYMBOLS_SETTING.key;
+interface Binding {
+	read: () => unknown;
+	write: (value: unknown) => void;
+}
+
+interface RemovedPanel {
+	id: string;
+	name: string;
+}
 
 export class TaskOverviewSettingTab extends PluginSettingTab {
 	private plugin: TaskOverviewPlugin;
-	private openPanelId: string | undefined;
+	private bindings = new Map<string, Binding>();
+	private sourceRows = new WeakMap<Source, Setting>();
+	private removedPanels: RemovedPanel[] = [];
 
 	constructor(app: App, plugin: TaskOverviewPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
-	display(): void {
-		this.render();
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		this.bindings.clear();
+		const { settings } = this.plugin;
+		return [
+			this.panelList(),
+			...this.removedPanelPages(),
+			{
+				type: "group",
+				id: "closing-statuses",
+				heading: "Task statuses",
+				items: [
+					this.modeDropdown("closingStatuses", CLOSING_STATUSES_SETTING, {
+						read: () => settings.closingStatuses,
+						write: (value) => (settings.closingStatuses = readClosingStatuses(value)),
+					}),
+					this.symbolsField("closingSymbols", CLOSING_SYMBOLS_SETTING, () => settings.closingStatuses === "listed", {
+						read: () => settings.closingSymbols,
+						write: (value) => (settings.closingSymbols = readText(value)),
+					}),
+					this.tasksMissingNotice("closing-tasks-missing", CLOSING_TASKS_MISSING_DESC, () => settings.closingStatuses),
+				],
+			},
+			{
+				type: "group",
+				id: "hidden-statuses",
+				heading: NOT_TASKS_HEADING,
+				items: [
+					this.modeDropdown("hiddenStatuses", HIDDEN_STATUSES_SETTING, {
+						read: () => settings.hiddenStatuses,
+						write: (value) => (settings.hiddenStatuses = readHiddenStatuses(value)),
+					}),
+					this.symbolsField("hiddenSymbols", HIDDEN_SYMBOLS_SETTING, () => settings.hiddenStatuses === "listed", {
+						read: () => settings.hiddenSymbols,
+						write: (value) => (settings.hiddenSymbols = readText(value)),
+					}),
+					this.tasksMissingNotice("hidden-tasks-missing", HIDDEN_TASKS_MISSING_DESC, () => settings.hiddenStatuses),
+				],
+			},
+		];
 	}
 
-	private render(): void {
-		const { containerEl } = this;
-		const scrolled = containerEl.scrollTop;
-		containerEl.empty();
+	getControlValue(key: string): unknown {
+		return this.bindings.get(key)?.read();
+	}
 
-		const panel = this.plugin.settings.panels.find(({ id }) => id === this.openPanelId);
-		if (panel) this.displayPanel(panel);
-		else this.displayMain();
-		containerEl.scrollTop = scrolled;
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const binding = this.bindings.get(key);
+		if (!binding) return;
+		binding.write(value);
+		await this.plugin.saveSettings();
 	}
 
 	hide(): void {
-		this.openPanelId = undefined;
+		this.removedPanels = [];
 		super.hide();
 	}
 
-	private openPage(panelId: string | undefined): void {
-		this.openPanelId = panelId;
-		this.render();
-		this.containerEl.scrollTop = 0;
+	private bind(key: string, binding: Binding): string {
+		this.bindings.set(key, binding);
+		return key;
 	}
 
-	private saveAndRender(): void {
+	private save(): void {
 		void this.plugin.saveSettings();
-		this.render();
 	}
 
-	private displayMain(): void {
-		const { containerEl } = this;
-		const { settings } = this.plugin;
-		const { panels } = settings;
-
-		renderSettingsList({
-			containerEl,
+	private panelList(): SettingDefinitionList {
+		const { panels } = this.plugin.settings;
+		return {
+			type: "list",
+			id: "panels",
 			heading: "Panels",
-			addLabel: "Add a panel",
-			emptyText: "No panels yet",
-			rows: panels.map((panel) => ({
-				name: panel.name,
-				desc: panel.sources.map((source) => this.sourceName(source)).join(", ") || NO_SOURCES,
-				editLabel: "Edit panel",
-				onEdit: () => this.openPage(panel.id),
-			})),
-			onAdd: (anchor) =>
-				showChoices(anchor, [
-					{ title: "Panel for the focused note", pick: () => this.addPanel("Focused note", [{ kind: "focused" }]) },
-					{ title: "Panel for today's note", pick: () => this.addPanel("Today", [{ kind: "day" }]) },
-					{ title: "Empty panel", pick: () => this.addPanel("New panel", []) },
-				]),
-			onMove: (from, to) => {
-				moveEntry(panels, from, to);
-				this.saveAndRender();
+			emptyState: "No panels yet",
+			addItem: {
+				name: "Add a panel",
+				action: (anchor) =>
+					showChoices(anchor, [
+						{ title: "Panel for the focused note", pick: () => this.addPanel("Focused note", [{ kind: "focused" }]) },
+						{ title: "Panel for today's note", pick: () => this.addPanel("Today", [{ kind: "day" }]) },
+						{ title: "Empty panel", pick: () => this.addPanel("New panel", []) },
+					]),
 			},
-			onDelete: (index) => {
-				if (panels.length === 1) {
-					new Notice("Keep at least one panel.");
-					return;
-				}
-				void this.plugin.deletePanel(panels[index]).then(() => this.render());
-			},
-		});
-
-		new Setting(containerEl).setName("Task statuses").setHeading();
-
-		this.addModeDropdown(CLOSING_STATUSES_SETTING, settings.closingStatuses, (value) => {
-			settings.closingStatuses = readClosingStatuses(value);
-		});
-		if (settings.closingStatuses === "listed") this.addSymbolsField(CLOSING_SYMBOLS_SETTING);
-		if (this.needsMissingTasks(settings.closingStatuses)) this.addTasksMissingNotice(CLOSING_TASKS_MISSING_DESC);
-
-		new Setting(containerEl).setName(NOT_TASKS_HEADING).setHeading();
-
-		this.addModeDropdown(HIDDEN_STATUSES_SETTING, settings.hiddenStatuses, (value) => {
-			settings.hiddenStatuses = readHiddenStatuses(value);
-		});
-		if (settings.hiddenStatuses === "listed") this.addSymbolsField(HIDDEN_SYMBOLS_SETTING);
-		if (this.needsMissingTasks(settings.hiddenStatuses)) this.addTasksMissingNotice(HIDDEN_TASKS_MISSING_DESC);
+			onReorder: (from, to) => this.movePanel(from, to),
+			onDelete: (index) => this.removePanel(panels[index]),
+			items: panels.map((panel) => this.panelPage(panel)),
+		};
 	}
 
 	private addPanel(name: string, sources: Source[]): void {
 		const { panels } = this.plugin.settings;
-		const panel = newPanel(panels, name, sources);
-		panels.push(panel);
-		void this.plugin.saveSettings();
-		this.openPage(panel.id);
+		panels.push(newPanel(panels, name, sources));
+		this.save();
 	}
 
-	private displayPanel(panel: Panel): void {
-		const { containerEl } = this;
+	private movePanel(from: number, to: number): void {
+		moveEntry(this.plugin.settings.panels, from, to);
+		this.save();
+	}
 
-		const title = new Setting(containerEl).setName(panel.name).setHeading();
-		title.settingEl.addClass("task-overview-settings-page-title");
-		title.addButton((button) => button.setButtonText("Back to all panels").onClick(() => this.openPage(undefined)));
+	private removePanel(panel: Panel | undefined): void {
+		if (!panel) return;
+		if (this.plugin.settings.panels.length === 1) {
+			new Notice(REMOVE_SETTING.lastPanel);
+			return;
+		}
+		this.removedPanels.push({ id: panel.id, name: panel.name });
+		void this.plugin.deletePanel(panel);
+	}
 
-		const name = new Setting(containerEl).setName("Name").setDesc(this.panelNameDesc(panel));
-		name.addText((text) =>
-			text.setValue(panel.name).onChange((typed) => {
-				const trimmed = typed.trim();
-				if (trimmed === "") {
-					name.setDesc("A panel needs a name.");
-					return;
-				}
-				panel.name = trimmed;
-				title.setName(trimmed);
-				name.setDesc(this.panelNameDesc(panel));
-				void this.plugin.saveSettings();
-			}),
-		);
+	private removedPanelPages(): SettingDefinitionPage[] {
+		const { panels } = this.plugin.settings;
+		return this.removedPanels
+			.filter((removed, index, all) => all.findIndex(({ id }) => id === removed.id) === index)
+			.filter((removed) => !panels.some(({ id }) => id === removed.id))
+			.map((removed) => ({
+				type: "page",
+				id: removed.id,
+				name: removed.name,
+				visible: false,
+				items: [{ id: "removed", name: REMOVED_PANEL.name, desc: REMOVED_PANEL.desc, searchable: false }],
+			}));
+	}
 
-		const icon = new Setting(containerEl).setName("Icon").setDesc("Shown on the panel's tab and next to its command.");
-		setIcon(icon.controlEl.createSpan({ cls: "task-overview-icon-preview" }), panel.icon);
-		icon.addButton((button) =>
+	private panelPage(panel: Panel): SettingDefinitionPage {
+		const key = (setting: string) => `panel:${panel.id}:${setting}`;
+		return {
+			type: "page",
+			id: panel.id,
+			name: panel.name,
+			desc: panel.sources.map((source) => this.sourceName(source)).join(", ") || NO_SOURCES,
+			items: [
+				{
+					id: "name",
+					name: PANEL_NAME_SETTING.name,
+					desc: PANEL_NAME_SETTING.desc,
+					control: {
+						type: "text",
+						key: this.bind(key("name"), {
+							read: () => panel.name,
+							write: (value) => (panel.name = readText(value).trim() || panel.name),
+						}),
+						validate: (typed) => (typed.trim() === "" ? PANEL_NAME_SETTING.empty : undefined),
+					},
+				},
+				{
+					id: "icon",
+					name: ICON_SETTING.name,
+					desc: ICON_SETTING.desc,
+					render: (setting) => this.renderIconPicker(setting, panel),
+				},
+				this.sourceList(panel),
+				...this.periodicDetails(panel, key),
+				{
+					type: "group",
+					id: "layout",
+					heading: "Layout",
+					items: [
+						{
+							id: "headings",
+							name: HEADINGS_SETTING.name,
+							desc: HEADINGS_SETTING.desc,
+							control: {
+								type: "toggle",
+								key: this.bind(key("showHeadings"), {
+									read: () => panel.showHeadings,
+									write: (value) => (panel.showHeadings = value === true),
+								}),
+							},
+						},
+						{
+							id: "note-headers",
+							name: NOTE_HEADERS_SETTING.name,
+							desc: NOTE_HEADERS_SETTING.desc,
+							control: {
+								type: "toggle",
+								key: this.bind(key("showNoteHeaders"), {
+									read: () => panel.showNoteHeaders,
+									write: (value) => (panel.showNoteHeaders = value === true),
+								}),
+							},
+						},
+					],
+				},
+				{
+					type: "group",
+					id: "panel-list",
+					heading: "Panel list",
+					items: [
+						{
+							id: "position",
+							name: POSITION_SETTING.name,
+							desc: POSITION_SETTING.desc,
+							render: (setting) => this.renderPosition(setting, panel),
+						},
+						{
+							id: "remove",
+							name: REMOVE_SETTING.name,
+							desc: REMOVE_SETTING.desc,
+							render: (setting) => this.renderRemove(setting, panel),
+						},
+					],
+				},
+			],
+		};
+	}
+
+	private renderIconPicker(setting: Setting, panel: Panel): void {
+		setIcon(setting.controlEl.createSpan({ cls: "task-overview-icon-preview" }), panel.icon);
+		setting.addButton((button) =>
 			button.setButtonText("Choose icon").onClick(() =>
 				new IconPicker(this.app, (picked) => {
 					panel.icon = picked;
-					this.saveAndRender();
+					this.save();
 				}).open(),
 			),
 		);
-
-		this.displaySources(panel);
-
-		new Setting(containerEl).setName("Layout").setHeading();
-		this.addPanelToggle(HEADINGS_SETTING, panel.showHeadings, (value) => (panel.showHeadings = value));
-		this.addPanelToggle(NOTE_HEADERS_SETTING, panel.showNoteHeaders, (value) => (panel.showNoteHeaders = value));
 	}
 
-	private panelNameDesc(panel: Panel): string {
-		return `Names the tab and the command "Open ${panel.name}".`;
+	private renderPosition(setting: Setting, panel: Panel): void {
+		const { panels } = this.plugin.settings;
+		const index = panels.indexOf(panel);
+		setting.setDesc(`Panel ${index + 1} of ${panels.length}. ${POSITION_SETTING.desc}`);
+		setting.addButton((button) =>
+			button
+				.setButtonText("Move up")
+				.setDisabled(index <= 0)
+				.onClick(() => this.movePanel(index, index - 1)),
+		);
+		setting.addButton((button) =>
+			button
+				.setButtonText("Move down")
+				.setDisabled(index === panels.length - 1)
+				.onClick(() => this.movePanel(index, index + 1)),
+		);
 	}
 
-	private addPanelToggle(definition: { name: string; desc: string }, value: boolean, change: (value: boolean) => void): void {
-		new Setting(this.containerEl)
-			.setName(definition.name)
-			.setDesc(definition.desc)
-			.addToggle((toggle) =>
-				toggle.setValue(value).onChange((next) => {
-					change(next);
-					void this.plugin.saveSettings();
-				}),
-			);
+	private renderRemove(setting: Setting, panel: Panel): void {
+		const lastPanel = this.plugin.settings.panels.length === 1;
+		setting.setDesc(lastPanel ? REMOVE_SETTING.lastPanel : REMOVE_SETTING.desc);
+		setting.addButton((button) =>
+			button
+				.setButtonText("Remove panel")
+				.setDestructive()
+				.setDisabled(lastPanel)
+				.onClick(() => this.removePanel(panel)),
+		);
 	}
 
-	private displaySources(panel: Panel): void {
+	private sourceList(panel: Panel): SettingDefinitionList {
 		const { sources } = panel;
-		renderSettingsList({
-			containerEl: this.containerEl,
+		return {
+			type: "list",
+			id: "sources",
 			heading: "Sources",
-			addLabel: "Add a source",
-			emptyText: NO_SOURCES,
-			rows: sources.map((source) => this.sourceRow(source)),
-			onAdd: (anchor) => showChoices(anchor, this.sourceChoices(sources)),
-			onMove: (from, to) => {
+			emptyState: NO_SOURCES,
+			addItem: {
+				name: "Add a source",
+				action: (anchor) => showChoices(anchor, this.sourceChoices(sources)),
+			},
+			onReorder: (from, to) => {
 				moveEntry(sources, from, to);
-				this.saveAndRender();
+				this.save();
 			},
 			onDelete: (index) => {
 				sources.splice(index, 1);
-				this.saveAndRender();
+				this.save();
 			},
-		});
+			items: sources.map((source, index) => this.sourceRow(sources, source, index)),
+		};
 	}
 
 	private sourceChoices(sources: Source[]): Choice[] {
 		const add = (source: Source) => {
 			sources.push(source);
-			this.saveAndRender();
+			this.save();
 		};
 		const listed = (kind: Source["kind"]) => sources.some((source) => source.kind === kind);
 		return [
@@ -303,19 +458,32 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 		return PERIOD_LABELS[source.kind];
 	}
 
-	private sourceRow(source: Source): ListRow {
+	private sourceRow(sources: Source[], source: Source, index: number): SettingDefinition {
 		const name = this.sourceName(source);
-		if (source.kind === "focused") return { name, desc: FOCUSED_SOURCE_DESC };
+		if (source.kind === "focused") return { id: source.kind, name, desc: FOCUSED_SOURCE_DESC };
 		if (source.kind === "note") {
-			const missing = this.app.vault.getFileByPath(source.path) === null;
-			return { name, desc: missing ? `${source.path} is missing from the vault.` : source.path };
+			const firstWithPath = sources.findIndex((other) => other.kind === "note" && other.path === source.path);
+			return {
+				id: firstWithPath === index ? `note:${source.path}` : `note:${source.path}:${index}`,
+				name,
+				desc: this.noteDesc(source.path),
+				render: (setting) => void setting.setDesc(this.noteDesc(source.path)),
+			};
 		}
 		return {
+			id: source.kind,
 			name,
 			desc: this.periodicDesc(source),
-			addControls: (row) => this.addFollowControl(row, source),
-			addDetails: (containerEl, row) => this.addPeriodicDetails(containerEl, row, source),
+			render: (setting) => {
+				this.sourceRows.set(source, setting);
+				setting.setDesc(this.periodicDesc(source));
+				this.addFollowControl(setting, source);
+			},
 		};
+	}
+
+	private noteDesc(path: string): string {
+		return this.app.vault.getFileByPath(path) === null ? `${path} is missing from the vault.` : path;
 	}
 
 	private periodicDesc(source: PeriodicSource): string {
@@ -338,44 +506,71 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 				.onChange((mode) => {
 					if (mode === CUSTOM) source.custom = customLocationFor(source.kind, periodicPlugins(this.app));
 					else delete source.custom;
-					this.saveAndRender();
+					this.save();
 				}),
 		);
 	}
 
-	private addPeriodicDetails(containerEl: HTMLElement, row: Setting, source: PeriodicSource): void {
-		const { custom } = source;
-		const details = containerEl.createDiv({ cls: "task-overview-source-details" });
-		if (!custom) {
-			if (!detectPeriod(source.kind, periodicPlugins(this.app))) {
-				new Setting(details)
-					.setName(`No plugin provides ${PERIOD_NOTES[source.kind]} notes`)
-					.setDesc(this.missingProviderDesc(source.kind));
-			}
-			return;
-		}
+	private periodicDetails(panel: Panel, key: (setting: string) => string): SettingDefinitionItem[] {
+		const periodic = panel.sources.filter((source): source is PeriodicSource => isPeriodic(source));
+		const missingProviders: SettingDefinition[] = periodic
+			.filter((source) => !source.custom)
+			.map((source) => ({
+				id: `${source.kind}-provider-missing`,
+				name: `No plugin provides ${PERIOD_NOTES[source.kind]} notes`,
+				desc: this.missingProviderDesc(source.kind),
+				searchable: false,
+				visible: () => !detectPeriod(source.kind, periodicPlugins(this.app)),
+			}));
+		const customLocations = periodic.flatMap((source) =>
+			source.custom ? [this.customLocationGroup(source, source.custom, key)] : [],
+		);
+		return [...missingProviders, ...customLocations];
+	}
 
-		new Setting(details)
-			.setName("Folder")
-			.setDesc("Where these notes live. Leave empty for the vault root.")
-			.addText((text) =>
-				text.setValue(custom.folder).onChange((typed) => {
-					custom.folder = typed;
-					row.setDesc(this.periodicDesc(source));
-					void this.plugin.saveSettings();
-				}),
-			);
+	private customLocationGroup(
+		source: PeriodicSource,
+		custom: PeriodLocation,
+		key: (setting: string) => string,
+	): SettingDefinitionGroup {
+		return {
+			type: "group",
+			id: `${source.kind}-location`,
+			heading: `${PERIOD_LABELS[source.kind]}: custom folder and format`,
+			items: [
+				{
+					id: "folder",
+					name: FOLDER_SETTING.name,
+					desc: FOLDER_SETTING.desc,
+					control: {
+						type: "folder",
+						key: this.bind(key(`${source.kind}:folder`), {
+							read: () => custom.folder,
+							write: (value) => (custom.folder = readText(value)),
+						}),
+					},
+				},
+				{
+					id: "format",
+					name: FORMAT_SETTING.name,
+					desc: FORMAT_SETTING.desc,
+					render: (setting) => this.renderFormatField(setting, source, custom),
+				},
+			],
+		};
+	}
 
-		const format = new Setting(details).setName("Format").setDesc(this.formatDesc(source.kind, custom.format));
-		format.addText((text) =>
+	private renderFormatField(setting: Setting, source: PeriodicSource, custom: PeriodLocation): void {
+		setting.setDesc(this.formatDesc(source.kind, custom.format));
+		setting.addText((text) =>
 			text
 				.setPlaceholder(DEFAULT_FORMATS[source.kind])
 				.setValue(custom.format)
 				.onChange((typed) => {
 					custom.format = typed;
-					format.setDesc(this.formatDesc(source.kind, typed));
-					row.setDesc(this.periodicDesc(source));
-					void this.plugin.saveSettings();
+					setting.setDesc(this.formatDesc(source.kind, typed));
+					this.sourceRows.get(source)?.setDesc(this.periodicDesc(source));
+					void this.plugin.saveWithoutRedrawingSettings();
 				}),
 		);
 	}
@@ -393,47 +588,58 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 		return `Enable ${providers}, or switch this source to Custom. Until then it lists nothing.`;
 	}
 
-	private needsMissingTasks(mode: ClosingStatuses | HiddenStatuses): boolean {
-		return mode === "tasks-plugin" && !isTasksPluginEnabled(this.app);
-	}
-
-	private addTasksMissingNotice(desc: string): void {
-		new Setting(this.containerEl).setName(TASKS_MISSING_NAME).setDesc(desc);
-	}
-
-	private addModeDropdown(
+	private modeDropdown(
+		key: string,
 		definition: { name: string; desc: string; options: Record<string, string> },
-		selected: string,
-		select: (value: string) => void,
-	): void {
-		new Setting(this.containerEl)
-			.setName(definition.name)
-			.setDesc(definition.desc)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOptions(definition.options)
-					.setValue(selected)
-					.onChange((value) => {
-						select(value);
-						this.saveAndRender();
-					}),
-			);
+		binding: Binding,
+	): SettingDefinition {
+		return {
+			id: key,
+			name: definition.name,
+			desc: definition.desc,
+			control: { type: "dropdown", key: this.bind(key, binding), options: definition.options },
+		};
 	}
 
-	private addSymbolsField(definition: { key: SymbolsKey; name: string; desc: string; placeholder: string }): void {
-		const settings: TaskOverviewSettings = this.plugin.settings;
-		const field = new Setting(this.containerEl).setName(definition.name).setDesc(definition.desc);
-		field.addText((text) =>
-			text
-				.setPlaceholder(definition.placeholder)
-				.setValue(settings[definition.key])
-				.onChange((value) => {
-					const error = symbolListError(value);
-					field.setDesc(error ?? definition.desc);
-					if (error) return;
-					settings[definition.key] = value;
-					void this.plugin.saveSettings();
-				}),
-		);
+	private symbolsField(
+		key: string,
+		definition: { name: string; desc: string; placeholder: string },
+		visible: () => boolean,
+		binding: Binding,
+	): SettingDefinition {
+		return {
+			id: key,
+			name: definition.name,
+			desc: definition.desc,
+			visible,
+			control: {
+				type: "text",
+				key: this.bind(key, binding),
+				placeholder: definition.placeholder,
+				validate: (typed) => symbolListError(typed) ?? undefined,
+			},
+		};
 	}
+
+	private tasksMissingNotice(
+		id: string,
+		desc: string,
+		mode: () => ClosingStatuses | HiddenStatuses,
+	): SettingDefinition {
+		return {
+			id,
+			name: TASKS_MISSING_NAME,
+			desc,
+			searchable: false,
+			visible: () => mode() === "tasks-plugin" && !isTasksPluginEnabled(this.app),
+		};
+	}
+}
+
+function isPeriodic(source: Source): source is PeriodicSource {
+	return source.kind !== "focused" && source.kind !== "note";
+}
+
+function readText(value: unknown): string {
+	return typeof value === "string" ? value : "";
 }

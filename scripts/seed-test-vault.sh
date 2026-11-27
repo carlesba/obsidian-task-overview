@@ -99,8 +99,8 @@ Before starting, copy \`.obsidian/plugins/task-overview/data.json\` aside. It st
 
 ## 1. Migration
 
-1. Build the new version and reload Obsidian with the old data.json in place.
-2. Open Settings → Task Overview. Expect a Panels list with one row, Task overview, described as Focused note. Its pencil opens the panel's page: icon check-square, one source Focused note.
+1. Use Obsidian 1.14.0 or later; the plugin no longer loads on older versions. Build the new version and reload Obsidian with the old data.json in place.
+2. Open Settings → Task Overview. Expect a Panels list with one row, Task overview, described as Focused note. Clicking the row opens the panel's page, titled Task overview with a back arrow: icon check-square, one source Focused note.
 3. Expect the panel's filter to be All and its headings toggle on, carried over from the old file.
 4. Expect the already-open sidebar leaf to keep working as that panel. The command is now named Task Overview: Open Task overview but keeps the id \`task-overview:open-panel\`, so a hotkey bound in 1.2.1 still opens it.
 
@@ -111,13 +111,14 @@ Before starting, copy \`.obsidian/plugins/task-overview/data.json\` aside. It st
 
 ## 3. Several sources and note headers
 
-1. In the Panels list press +. Expect a picker with three starting points, and nothing added until one is picked. Pick Empty panel; its page opens with the sources placeholder "No sources yet".
+1. In the Panels list press +. Expect a picker with three starting points, and nothing added until one is picked. Pick Empty panel. Expect a row New panel described as "No sources yet" at the end of the list; the list stays open, so click the row. Its page shows the sources placeholder "No sources yet".
 2. Name it Work, choose the icon briefcase from the fuzzy icon picker, and add the sources Focused note, Today, This week and, through Note…, [[Project Beta]]. Each + opens the picker again.
 3. Run Task Overview: Open Work and focus [[Project Alpha]].
 4. Expect four groups in source order, each under a header with the note name: Project Alpha, $today, $this_week, Project Beta. Clicking a header opens that note. The panel title reads Work.
 5. Turn "Show a header for each note" off. Expect one flat list in the same order.
 6. Turn headings on as well. Expect note headings, such as Follow-ups in Project Beta, inside each group.
-7. Reorder the sources with the up and down arrows, and on desktop by dragging the grip. Expect the groups to follow. The grip, arrows and pencil sit left of the name and the X on the right.
+7. Reorder the sources by dragging the handle at the right end of a row, or by focusing a row and pressing Alt+Up or Alt+Down. Expect the groups to follow. The X and the handle sit right of the name, where Obsidian's own lists put them.
+8. Go back to the panel list. Expect Work to be described by its sources in order. Open Work again and, under Panel list, press Move up. Expect "Panel 1 of 2", Move up disabled, and Work first in the list after going back.
 
 ## 4. Same note twice is shown once
 
@@ -129,18 +130,19 @@ Before starting, copy \`.obsidian/plugins/task-overview/data.json\` aside. It st
 
 1. Press + in a panel's source list. Expect Focused note, Today, This week, This month, This quarter, This year and Note…, minus the single-use ones the panel already has. Note… is always offered.
 2. Pick Today. Expect the row to default to Follow Date Compass and its description to read "Follows the folder and format of Date Compass: on/$today.md".
-3. Switch Today to Custom. Expect Folder \`on\` and Format \`YYYY-MM-DD\` prefilled from Date Compass, and the format description to show today's date, updating while you type.
+3. Switch Today to Custom. Expect a group "Today: custom folder and format" below the Sources list with Folder \`on\` and Format \`YYYY-MM-DD\` prefilled from Date Compass. Expect the format description to show today's date and the Today row to show the resolved path, both updating while you type without the field losing focus or the caret moving.
 4. Pick This week. Expect Follow Date Compass resolving to $this_week.md at the vault root. Change the week folder in Date Compass and expect the panel to follow without touching this source, which is what Follow is for.
 5. Pick This month. It resolves to $this_month.md at the vault root, which does not exist. With note headers on and another note in the panel, expect a muted header "$this_month not created yet" and no create button. As the panel's only source, expect the title $this_month and the message "This note is not created yet."
 6. Pick This quarter and This year. Expect $this_quarter.md and $this_year.md, handled like the month.
-7. Disable Date Compass and reopen the panel's page. Expect Today to read Follow Daily notes (core plugin, \`on\` / \`YYYY-MM-DD\`). Expect This week to read "Follow a plugin" with a warning row beneath it, "No plugin provides weekly notes", naming Date Compass and Periodic Notes, and the panel to show a muted "This week" line. A Custom source keeps resolving. Enable Date Compass again.
+7. Disable Date Compass and reopen the panel's page. Expect Today to read Follow Daily notes (core plugin, \`on\` / \`YYYY-MM-DD\`). Expect This week to read "Follow a plugin" with a warning row beneath the Sources list, "No plugin provides weekly notes", naming Date Compass and Periodic Notes, and the panel to show a muted "This week" line. A Custom source keeps resolving. Enable Date Compass again.
 
 ## 6. Commands and icons
 
 1. Expect a command Task Overview: Open Work in the palette, and the briefcase icon on the panel's tab.
 2. Bind a hotkey to Open Work, then rename Work to Deep work. Expect the command name and the tab title to follow and the hotkey to keep working.
 3. Run Open Deep work twice. Expect one tab, revealed the second time. The ribbon icon opens the first panel in the list.
-4. Delete the panel while it is open. Expect its tab to close and its command to leave the palette. Deleting the last remaining panel is refused with a notice.
+4. With the panel's tab open, open its settings page and press Remove panel. Expect its tab to close, its command to leave the palette, and the page to say "This panel was removed"; going back shows the list without it.
+5. Add a panel, focus its row in the list with the keyboard and press Delete. Expect it to go. On the last remaining panel, expect Remove panel to be disabled with "Keep at least one panel." and the Delete key to be refused with a notice.
 
 ## 7. Live updates
 
@@ -159,7 +161,13 @@ Before starting, copy \`.obsidian/plugins/task-overview/data.json\` aside. It st
 
 ## 9. Phone
 
-1. Repeat cases 3 and 5 on mobile. Every add, remove and reorder must work by tapping: + opens the picker, the arrows reorder, X removes. The drag grip is desktop only.
+1. Repeat cases 3 and 5 on mobile. The "Add a panel" and "Add a source" rows below each list open the picker, X removes a source, and dragging a source's handle by touch reorders it. Panels reorder with Move up and Move down and are removed with Remove panel, all by tapping.
+
+## 10. Settings search
+
+1. Type "headings" in the search box of the settings window. Expect "Group tasks under their headings" listed under Task Overview once per panel, and choosing a result to open that panel's page at the setting.
+2. Search "Statuses that close", "Icon", "Format" (with a Custom source) and a panel's name. Expect each to be found, and the missing-plugin warning rows not to be.
+3. Rename a panel, then search for a setting on its page. Expect the result to open the renamed panel.
 EOF
 
 echo
