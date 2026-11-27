@@ -46,6 +46,24 @@ The source's description names the plugin it follows and the note it resolves to
 
 Every panel has a command, "Open" followed by the panel's name, which you can bind to a hotkey or pin with a plugin such as Commander. A panel opens in the right sidebar, and running its command again reveals the tab it already has. The ribbon icon opens the first panel in the list. Renaming a panel renames its command and tab and keeps the hotkey; deleting a panel closes its tab.
 
+### Step by step: a "My day" panel
+
+This example builds a panel that shows the note you are working in next to today's and this week's notes and one project note, all in one list.
+
+1. Open Settings → Task Overview and press **Add a panel** under Panels, then pick **Empty panel**.
+2. Click the new panel, called New panel, to open its page. Set **Name** to `My day`, and use **Icon** to search for and pick an icon such as `sun`.
+3. Under **Sources**, press **Add a source** and pick **Focused note**. Repeat for **Today** and **This week**, then pick **Note…** and search for your project note.
+4. Check the description of the Today and This week rows. Each names the plugin it follows, such as Date Compass, and the note it opens today. If a row warns that no plugin provides it, enable one of the plugins listed under [Where periodic notes live](#where-periodic-notes-live), or switch the row to **Custom** and type the folder and format yourself.
+5. Drag the rows into the order you want the notes to appear in the panel.
+6. Under **Layout**, keep **Show a header for each note** on so each note gets its own header, and turn on **Group tasks under their headings** if your notes use sections.
+7. Close the settings, open the command palette and run **Task Overview: Open My day**. The panel opens in the right sidebar, and its tab shows the icon you picked.
+
+When the note in focus is today's note, its tasks appear once, under the first source in the list that reaches it. To open the panel faster, bind **Open My day** to a hotkey under Settings → Hotkeys, or add it to the ribbon with Commander.
+
+### Upgrading from 1.2
+
+Your settings move over on their own the first time the new version loads. The panel you had becomes a panel called Task overview that lists the note in focus, keeps the filter and headings choice you had, and stays in the sidebar tab it was in. Its command keeps the same id, so a hotkey bound to the old "Open panel" command still opens it, now under the name "Open Task overview". Panels need Obsidian 1.14.0 or later.
+
 ## Working alongside the Tasks plugin
 
 Task Overview reads and writes plain Markdown checkboxes, and it works with the custom statuses of the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin. A task marked `[/]` is styled as in progress and one marked `[-]` as cancelled, and cancelled tasks sit with the completed ones rather than the open ones.

@@ -1,7 +1,6 @@
 .task-overview {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-2);
 	padding: var(--size-4-2);
 }
 
@@ -116,27 +115,27 @@
 }
 
 .task-overview-heading[data-level="1"] {
-	--heading-scale: 1.15;
-}
-
-.task-overview-heading[data-level="2"] {
-	--heading-scale: 1.1;
-}
-
-.task-overview-heading[data-level="3"] {
-	--heading-scale: 1.05;
-}
-
-.task-overview-heading[data-level="4"] {
 	--heading-scale: 1;
 }
 
+.task-overview-heading[data-level="2"] {
+	--heading-scale: 0.97;
+}
+
+.task-overview-heading[data-level="3"] {
+	--heading-scale: 0.94;
+}
+
+.task-overview-heading[data-level="4"] {
+	--heading-scale: 0.91;
+}
+
 .task-overview-heading[data-level="5"] {
-	--heading-scale: 0.95;
+	--heading-scale: 0.88;
 }
 
 .task-overview-heading[data-level="6"] {
-	--heading-scale: 0.9;
+	--heading-scale: 0.85;
 }
 
 .task-overview-item {
