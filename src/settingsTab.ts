@@ -460,14 +460,17 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 
 	private sourceRow(sources: Source[], source: Source, index: number): SettingDefinition {
 		const name = this.sourceName(source);
-		if (source.kind === "focused") return { id: source.kind, name, desc: FOCUSED_SOURCE_DESC };
+		if (source.kind === "focused") return { id: source.kind, name, desc: FOCUSED_SOURCE_DESC, render: markSourceRow };
 		if (source.kind === "note") {
 			const firstWithPath = sources.findIndex((other) => other.kind === "note" && other.path === source.path);
 			return {
 				id: firstWithPath === index ? `note:${source.path}` : `note:${source.path}:${index}`,
 				name,
 				desc: this.noteDesc(source.path),
-				render: (setting) => void setting.setDesc(this.noteDesc(source.path)),
+				render: (setting) => {
+					markSourceRow(setting);
+					setting.setDesc(this.noteDesc(source.path));
+				},
 			};
 		}
 		return {
@@ -475,6 +478,7 @@ export class TaskOverviewSettingTab extends PluginSettingTab {
 			name,
 			desc: this.periodicDesc(source),
 			render: (setting) => {
+				markSourceRow(setting);
 				this.sourceRows.set(source, setting);
 				setting.setDesc(this.periodicDesc(source));
 				this.addFollowControl(setting, source);
@@ -642,4 +646,8 @@ function isPeriodic(source: Source): source is PeriodicSource {
 
 function readText(value: unknown): string {
 	return typeof value === "string" ? value : "";
+}
+
+function markSourceRow(setting: Setting): void {
+	setting.settingEl.addClass("task-overview-source-row");
 }

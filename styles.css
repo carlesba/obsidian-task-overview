@@ -199,3 +199,19 @@
 	display: flex;
 	align-items: center;
 }
+
+.task-overview-source-row {
+	gap: var(--size-4-2);
+}
+
+.task-overview-source-row > .setting-item-control {
+	display: contents;
+}
+
+.task-overview-source-row > .setting-item-control > .mod-drag-handle {
+	order: -1;
+}
+
+.task-overview-source-row > .setting-item-info {
+	flex: 1 1 auto;
+}
