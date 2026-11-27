@@ -15,8 +15,6 @@ export interface TaskListProps {
 }
 
 export function renderTaskList(props: TaskListProps): void {
-	props.container.empty();
-
 	for (const row of buildTaskRows(props.tasks, props.showHeadings === true)) {
 		if (row.kind === "heading") {
 			renderHeadingRow(props.container, row.heading);
@@ -50,13 +48,12 @@ function renderTaskRow(props: TaskListProps, task: Task): void {
 	const label = row.createDiv({ cls: "task-overview-item-label" });
 	void MarkdownRenderer.render(props.app, task.text, label, props.file.path, props.owner);
 
-	row.addEventListener("click", () => void revealTaskLine(props.app, props.file, task));
+	row.addEventListener("click", () => void openNote(props.app, props.file, task.line));
 }
 
-async function revealTaskLine(app: App, file: TFile, task: Task): Promise<void> {
+export async function openNote(app: App, file: TFile, line?: number): Promise<void> {
 	const leaf = app.workspace.getMostRecentLeaf() ?? app.workspace.getLeaf(true);
-	const position = { line: task.line, ch: 0 };
-	await leaf.openFile(file, {
-		eState: { line: task.line, cursor: { from: position, to: position } },
-	});
+	if (line === undefined) return leaf.openFile(file);
+	const position = { line, ch: 0 };
+	await leaf.openFile(file, { eState: { line, cursor: { from: position, to: position } } });
 }

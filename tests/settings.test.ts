@@ -2,34 +2,99 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { defaultSettings, migrateSettings } from "../src/settings.ts";
 
-test("migrateSettings falls back to the defaults when nothing is stored", () => {
-	assert.deepEqual(migrateSettings(undefined), defaultSettings());
-	assert.deepEqual(migrateSettings(null), defaultSettings());
-	assert.deepEqual(migrateSettings("nonsense"), defaultSettings());
+const FOCUSED_PANEL = {
+	id: "default",
+	name: "Task overview",
+	icon: "check-square",
+	sources: [{ kind: "focused" }],
+	filter: "open",
+	showHeadings: false,
+	showNoteHeaders: true,
+};
+
+test("a new install gets one panel for the focused note, open tasks, no headings", () => {
+	assert.deepEqual(defaultSettings().panels, [FOCUSED_PANEL]);
 });
 
-test("migrateSettings keeps the filter of an install that only stored one", () => {
-	assert.deepEqual(migrateSettings({ filter: "closed" }), { ...defaultSettings(), filter: "closed" });
+test("migrateSettings falls back to the defaults when nothing usable is stored", () => {
+	for (const stored of [undefined, null, "nonsense", 42, [], {}, { panels: "many" }, { panels: [] }, { panels: [7, null] }]) {
+		assert.deepEqual(migrateSettings(stored), defaultSettings());
+	}
 });
 
-test("migrateSettings reads the filter and headings of a panel-shaped install", () => {
-	assert.deepEqual(migrateSettings({ focusedPanel: { filter: "all", showHeadings: true }, notePanels: [] }), {
+test("migrateSettings turns the 1.2.1 shape into the default panel and keeps the status rules", () => {
+	const migrated = migrateSettings({ filter: "all", showHeadings: true, closingStatuses: "listed", closingSymbols: "x, >" });
+
+	assert.deepEqual(migrated, {
 		...defaultSettings(),
-		filter: "all",
-		showHeadings: true,
+		panels: [{ ...FOCUSED_PANEL, filter: "all", showHeadings: true }],
+		closingStatuses: "listed",
+		closingSymbols: "x, >",
 	});
 });
 
-test("migrateSettings reads the current shape unchanged", () => {
-	assert.deepEqual(migrateSettings({ filter: "all", showHeadings: true }), {
-		...defaultSettings(),
-		filter: "all",
-		showHeadings: true,
-	});
+test("migrateSettings turns the focusedPanel shape into the default panel", () => {
+	const migrated = migrateSettings({ focusedPanel: { filter: "closed", showHeadings: true }, notePanels: [] });
+
+	assert.deepEqual(migrated.panels, [{ ...FOCUSED_PANEL, filter: "closed", showHeadings: true }]);
 });
 
-test("migrateSettings rejects a filter that is not one of the three", () => {
+test("migrateSettings rejects a legacy filter that is not one of the three", () => {
 	assert.deepEqual(migrateSettings({ filter: "archived" }), defaultSettings());
+});
+
+test("migrateSettings reads stored panels unchanged", () => {
+	const panels = [
+		{ ...FOCUSED_PANEL, filter: "all" },
+		{
+			id: "panel-1",
+			name: "Work",
+			icon: "briefcase",
+			sources: [
+				{ kind: "focused" },
+				{ kind: "day" },
+				{ kind: "week", custom: { folder: "weeks", format: "GGGG-[W]WW" } },
+				{ kind: "note", path: "Projects/Beta.md" },
+			],
+			filter: "closed",
+			showHeadings: true,
+			showNoteHeaders: false,
+		},
+	];
+
+	assert.deepEqual(migrateSettings({ panels }).panels, panels);
+});
+
+test("migrateSettings drops sources it does not know and defaults bad panel fields", () => {
+	const [panel] = migrateSettings({
+		panels: [
+			{
+				id: 7,
+				name: "  ",
+				icon: null,
+				sources: [{ kind: "decade" }, { kind: "note" }, { kind: "note", path: " " }, "focused", { kind: "year", custom: "yes" }],
+				filter: "archived",
+				showHeadings: "yes",
+				showNoteHeaders: "no",
+			},
+		],
+	}).panels;
+
+	assert.deepEqual(panel, {
+		id: "panel-1",
+		name: "Task overview",
+		icon: "check-square",
+		sources: [{ kind: "year" }],
+		filter: "open",
+		showHeadings: false,
+		showNoteHeaders: true,
+	});
+});
+
+test("migrateSettings gives panels sharing an id their own", () => {
+	const ids = migrateSettings({ panels: [{ id: "default" }, { id: "default" }, { id: "panel-1" }] }).panels.map(({ id }) => id);
+
+	assert.deepEqual(ids, ["default", "panel-1", "panel-2"]);
 });
 
 test("defaultSettings closes only done and cancelled tasks", () => {
